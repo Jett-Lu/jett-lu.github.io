@@ -3,55 +3,97 @@ const ctx = canvas.getContext('2d');
 const gameOverDiv = document.getElementById('game-over');
 const gameOverText = document.getElementById('game-over-text');
 
-// Set canvas dimensions (fixed size)
-canvas.width = 400;
-canvas.height = 600;
+// Set canvas dimensions for a larger game map
+canvas.width = 500;
+canvas.height = 700;
 
 // Game variables
 const laneCount = 3;
-const carWidth = canvas.width / (laneCount + 2);
+const carWidth = 60;
 const carHeight = 50;
-let playerCar = { x: 1, y: canvas.height - carHeight * 2, lane: 1 };
+let playerCar = { y: canvas.height - carHeight * 2, lane: 1 };
 let obstacles = [];
-let speed = 1; // Start with a slower speed
+let speed = 0.5; // Start with a slower speed
 let score = 0;
 let highScore = 0;
 let gameRunning = true;
+let lastObstacleSpawnTime = 0; // To control the timing between car spawns
 
 // ASCII Art
 const playerCarArt = "[=]";
 const obstacleArt = "[#]";
 
-// Create an obstacle
+// Create obstacles ensuring no more than two cars per row and proper gaps
 function createObstacle() {
-    const lane = Math.floor(Math.random() * laneCount);
-    obstacles.push({ x: lane * carWidth + carWidth, y: -carHeight });
+    const lanes = [0, 1, 2];
+
+    // Decide how many obstacles to spawn based on score
+    let obstacleCount;
+    if (score < 50) {
+        obstacleCount = 1; // Start with 1 obstacle per row
+    } else if (score < 200) {
+        obstacleCount = 1 + Math.floor(Math.random() * 2); // Randomly 1 or 2 obstacles
+    } else {
+        obstacleCount = 2;
+    }
+
+    // Shuffle lanes
+    for (let i = lanes.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [lanes[i], lanes[j]] = [lanes[j], lanes[i]];
+    }
+
+    // Add obstacles in the first obstacleCount lanes
+    lanes.slice(0, obstacleCount).forEach(lane => {
+        obstacles.push({ x: lane, y: -carHeight });
+    });
 }
 
-// Draw the road and player
+// Draw the road with flipped perspective
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw road lanes
+    // Road parameters
+    const roadWidthBottom = canvas.width / 3; // Narrowest at the bottom now
+    const roadWidthTop = canvas.width - 50;   // Widest at the top
+    const roadHeight = canvas.height;
+    const laneWidthBottom = roadWidthBottom / laneCount;
+    const laneWidthTop = roadWidthTop / laneCount;
+
+    // Draw road sides (flipped perspective)
     ctx.strokeStyle = 'white';
     ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo((canvas.width - roadWidthTop) / 2, roadHeight); // Left bottom (now widest)
+    ctx.lineTo((canvas.width - roadWidthBottom) / 2, 0);       // Left top (now narrowest)
+    ctx.moveTo((canvas.width + roadWidthTop) / 2, roadHeight); // Right bottom (now widest)
+    ctx.lineTo((canvas.width + roadWidthBottom) / 2, 0);       // Right top (now narrowest)
+    ctx.stroke();
+
+    // Draw dashed center lines for lanes with flipped perspective
+    ctx.setLineDash([15, 15]); // Dash pattern
     for (let i = 1; i < laneCount; i++) {
+        const laneXTop = (canvas.width - roadWidthTop) / 2 + laneWidthTop * i;
+        const laneXBottom = (canvas.width - roadWidthBottom) / 2 + laneWidthBottom * i;
         ctx.beginPath();
-        ctx.moveTo(i * carWidth + carWidth, 0);
-        ctx.lineTo(i * carWidth + carWidth, canvas.height);
+        ctx.moveTo(laneXTop, roadHeight);
+        ctx.lineTo(laneXBottom, 0);
         ctx.stroke();
     }
+    ctx.setLineDash([]); // Reset dash pattern
 
-    // Draw obstacles
+    // Draw obstacles following the flipped perspective
     ctx.fillStyle = 'white';
     ctx.font = '20px Courier';
     obstacles.forEach(obstacle => {
-        ctx.fillText(obstacleArt, obstacle.x, obstacle.y);
+        const laneCenterX = getLaneCenterX(obstacle.x, obstacle.y);
+        ctx.fillText(obstacleArt, laneCenterX - 10, obstacle.y); // Adjusted position
     });
 
     // Draw player car
     ctx.fillStyle = 'white';
-    ctx.fillText(playerCarArt, playerCar.x, playerCar.y);
+    const playerX = getLaneCenterX(playerCar.lane, playerCar.y);
+    ctx.fillText(playerCarArt, playerX - ctx.measureText(playerCarArt).width / 2, playerCar.y); // Centered
 
     // Draw score and high score
     ctx.fillStyle = 'white';
@@ -60,7 +102,23 @@ function draw() {
     ctx.fillText(`High Score: ${Math.floor(highScore)}`, 10, 40);
 }
 
-// Update the game state
+// Get lane center X-coordinate with corrected flipped perspective
+function getLaneCenterX(lane, yPosition) {
+    const roadWidthBottom = canvas.width / 3;  // Narrow at the bottom
+    const roadWidthTop = canvas.width - 50;    // Wide at the top
+    const laneWidthBottom = roadWidthBottom / laneCount;
+    const laneWidthTop = roadWidthTop / laneCount;
+
+    // Corrected t calculation for flipped perspective
+    const t = yPosition / canvas.height; // t = 0 at top, t = 1 at bottom
+
+    const laneWidth = laneWidthBottom * (1 - t) + laneWidthTop * t;
+    const roadOffset = (canvas.width - (roadWidthBottom * (1 - t) + roadWidthTop * t)) / 2;
+
+    return roadOffset + lane * laneWidth + laneWidth / 2;
+}
+
+// Update game state
 function update() {
     if (!gameRunning) return;
 
@@ -77,7 +135,7 @@ function update() {
         if (
             obstacle.y + carHeight > playerCar.y &&
             obstacle.y < playerCar.y + carHeight &&
-            obstacle.x === playerCar.x
+            obstacle.x === playerCar.lane
         ) {
             gameRunning = false;
             displayGameOver();
@@ -85,31 +143,34 @@ function update() {
     });
 
     // Increase score and difficulty
-    score += 0.01; // Slower score increment
+    score += 0.02; // Slow down the score count by reducing the increment
     if (score > highScore) highScore = score;
-    if (score % 100 === 0) speed += 0.1; // Gradually increase speed
+    if (Math.floor(score) % 100 === 0) speed += 0.05; // Increase speed more slowly
 
-    // Add new obstacles less frequently at the start
-    if (Math.random() < 0.02) createObstacle();
+    // Add new obstacles with longer timing gaps
+    const now = Date.now();
+    const spawnRate = Math.min(1500, 500 + score * 10); // Minimum spawn gap of 1.5 seconds
+    if (now - lastObstacleSpawnTime > spawnRate) {
+        createObstacle();
+        lastObstacleSpawnTime = now;
+    }
 }
 
 // Move the player car
 function movePlayer(direction) {
     if (direction === 'left' && playerCar.lane > 0) {
         playerCar.lane--;
-        playerCar.x = playerCar.lane * carWidth + carWidth;
     }
     if (direction === 'right' && playerCar.lane < laneCount - 1) {
         playerCar.lane++;
-        playerCar.x = playerCar.lane * carWidth + carWidth;
     }
 }
 
 // Display game over screen
 function displayGameOver() {
-    gameOverText.innerHTML = `Your score: ${Math.floor(score)}<br>`;
+    gameOverText.innerHTML = `Your score:<br><br>${Math.floor(score)}<br><br>`;
     if (score >= highScore) {
-        gameOverText.innerHTML += `New Highscore: ${Math.floor(highScore)}<br>`;
+        gameOverText.innerHTML += `New Highscore:<br><br>${Math.floor(highScore)}<br><br>`;
     }
     gameOverDiv.classList.remove('hidden');
     gameOverDiv.style.visibility = 'visible';
@@ -117,9 +178,9 @@ function displayGameOver() {
 
 // Reset the game
 function resetGame() {
-    playerCar = { x: 1 * carWidth + carWidth, y: canvas.height - carHeight * 2, lane: 1 };
+    playerCar = { y: canvas.height - carHeight * 2, lane: 1 };
     obstacles = [];
-    speed = 1; // Reset speed
+    speed = 0.5; // Reset speed to be slower
     score = 0;
     gameRunning = true;
     gameOverDiv.classList.add('hidden');
@@ -134,17 +195,14 @@ function gameLoop() {
 }
 
 // Handle keyboard input
-document.addEventListener('keydown', () => {
+document.addEventListener('keydown', (e) => {
     if (!gameRunning) {
         resetGame();
         gameLoop();
+    } else {
+        if (e.key === 'ArrowLeft') movePlayer('left');
+        if (e.key === 'ArrowRight') movePlayer('right');
     }
-});
-
-// Handle player movement
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft') movePlayer('left');
-    if (e.key === 'ArrowRight') movePlayer('right');
 });
 
 // Scroll event for background color change
