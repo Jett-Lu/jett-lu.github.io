@@ -3,23 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Portfolio</title>
+    <title>ASCII Car Game</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-    <div class="menu-bar">
-        <a href="about.html">About Me</a>
-        <a href="portfolio.html">Portfolio/Work</a>
-        <a href="skills.html">Skills</a>
-        <a href="contact.html">Contact</a>
+    <!-- Game Container -->
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <h1 id="name-title">Jett Lu</h1>
+        <div id="game-over" class="hidden">
+            <p id="game-over-text"></p>
+        </div>
     </div>
 
-    <div class="main-content">
-        <h1>Your Name</h1>
-        <canvas id="flappyCanvas"></canvas>
+    <!-- Navigation Menu (Fixed) -->
+    <nav class="menu">
+        <ul>
+            <li><a href="#about">About</a></li>
+            <li><a href="#projects">Projects</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+    </nav>
+
+    <!-- Content Sections -->
+    <div id="content-container">
+        <section id="about">
+            <h2>About Me</h2>
+            <p>I am a software engineering student passionate about building interactive web experiences.</p>
+        </section>
+
+        <section id="projects">
+            <h2>Projects</h2>
+            <p>Here are some of the projects I've worked on...</p>
+        </section>
+
+        <section id="contact">
+            <h2>Contact</h2>
+            <p>Feel free to reach out to me at <a href="mailto:jett.lu@example.com">jett.lu@example.com</a>.</p>
+        </section>
     </div>
 
-    <script src="flappybird.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

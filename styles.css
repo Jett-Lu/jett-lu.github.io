@@ -1,58 +1,117 @@
-body {
+/* Basic Reset */
+* {
     margin: 0;
-    font-family: Arial, sans-serif;
-    overflow: hidden;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-a {
-    text-decoration: none; /* Remove underline from all links */
-    color: inherit; /* Ensure link colors inherit from parent */
+/* Body Style */
+body {
+    font-family: 'Courier New', monospace;
+    background-color: #fff;
+    color: #000;
+    overflow-x: hidden;
+    transition: background-color 1s, color 1s;
 }
 
-.menu-bar {
-    background-color: rgba(255, 255, 255, 0.5); /* Transparent background */
-    position: fixed;
-    width: 100%;
-    top: 0;
-    display: flex;
-    justify-content: space-around;
-    padding: 10px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-    z-index: 10; /* Ensure the menu is on top */
-}
-
-.menu-bar a {
-    text-decoration: none; /* Ensure there is no underline */
-    color: white; /* White text */
-    font-weight: bold;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7); /* Drop shadow effect */
-    padding: 10px; /* Add some padding for better spacing */
-}
-
-.menu-bar a:hover {
-    color: #FF5733; /* Change color on hover if desired */
-}
-
-.main-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
+/* Fullscreen Game Container */
+#game-container {
     position: relative;
-    z-index: 1;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #000;
+    transition: opacity 2s ease;
 }
 
-h1 {
-    font-size: 3em;
-    position: absolute;
-    top: 20%;
-    color: #FF5733; /* Your name color */
-    z-index: 5; /* Ensure the name is on top */
+/* Game Canvas */
+#gameCanvas {
+    background-color: #000;
+    border: 2px solid white;
+    width: 80%;
+    height: 80%;
 }
 
-canvas {
+/* Game Over Screen */
+#game-over {
     position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 24px;
+    text-align: center;
+    visibility: hidden;
+}
+
+/* Name Title */
+#name-title {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    color: #fff;
+    font-size: 24px;
+    font-weight: bold;
+    z-index: 100;
+}
+
+/* Navigation Menu */
+.menu {
+    width: 100%;
+    background-color: #fff;
+    padding: 10px 0;
+    position: fixed;
     top: 0;
     left: 0;
+    z-index: 100;
+    transition: background-color 1s, color 1s;
+}
+
+.menu ul {
+    list-style: none;
+    display: flex;
+    justify-content: center;
+}
+
+.menu ul li {
+    margin: 0 20px;
+}
+
+.menu ul li a {
+    text-decoration: none;
+    color: inherit;
+    font-size: 18px;
+}
+
+/* Section Styles */
+section {
+    width: 80%;
+    max-width: 1000px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: #f8f8f8;
+    border-radius: 10px;
+}
+
+/* Fade/Blend Effect */
+#content-container {
+    opacity: 0;
+    transition: opacity 2s ease;
+}
+
+body.scrolled #content-container {
+    opacity: 1;
+}
+
+/* Dynamic Text Color */
+body.black-bg {
+    background-color: #000;
+    color: #fff;
+}
+body.black-bg #game-container,
+body.black-bg .menu {
+    background-color: #000;
+    color: #fff;
 }
