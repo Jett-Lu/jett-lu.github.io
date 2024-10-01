@@ -1,57 +1,58 @@
-/* Basic reset and styles */
-body, html {
+body {
     margin: 0;
-    padding: 0;
-    font-family: 'Arial', sans-serif;
-    background-color: #f5f5f5;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
 }
 
-/* Sticky Nav Menu */
-nav {
+a {
+    text-decoration: none; /* Remove underline from all links */
+    color: inherit; /* Ensure link colors inherit from parent */
+}
+
+.menu-bar {
+    background-color: rgba(255, 255, 255, 0.5); /* Transparent background */
     position: fixed;
-    top: 0;
     width: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    text-align: center;
+    top: 0;
+    display: flex;
+    justify-content: space-around;
     padding: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    z-index: 10; /* Ensure the menu is on top */
 }
 
-nav ul {
-    list-style: none;
-    padding: 0;
+.menu-bar a {
+    text-decoration: none; /* Ensure there is no underline */
+    color: white; /* White text */
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7); /* Drop shadow effect */
+    padding: 10px; /* Add some padding for better spacing */
 }
 
-nav ul li {
-    display: inline;
-    margin: 0 15px;
+.menu-bar a:hover {
+    color: #FF5733; /* Change color on hover if desired */
 }
 
-nav ul li a {
-    color: white;
-    text-decoration: none;
-}
-
-/* Main Header */
-#main-header {
-    height: 100vh;
+.main-content {
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    background: linear-gradient(to right, #ff7e5f, #feb47b);
+    justify-content: center;
+    height: 100vh;
+    position: relative;
+    z-index: 1;
 }
 
-#main-header h1 {
-    font-size: 4rem;
-    color: white;
+h1 {
+    font-size: 3em;
     position: absolute;
-    top: 20px;
+    top: 20%;
+    color: #FF5733; /* Your name color */
+    z-index: 5; /* Ensure the name is on top */
 }
 
-/* Game Canvas */
-#gameCanvas {
-    width: 100%;
-    height: 70%;
-    display: block;
+canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
 }
