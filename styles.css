@@ -30,8 +30,8 @@ body {
 #gameCanvas {
     background-color: #000;
     border: 2px solid white;
-    width: 80%;
-    height: 80%;
+    width: 400px; /* Fixed width */
+    height: 600px; /* Fixed height */
 }
 
 /* Game Over Screen */
@@ -40,10 +40,16 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: white;
-    font-size: 24px;
-    text-align: center;
     visibility: hidden;
+}
+
+#game-over-box {
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #000;
+    padding: 20px;
+    border: 2px solid #000;
+    border-radius: 10px;
+    text-align: center;
 }
 
 /* Name Title */

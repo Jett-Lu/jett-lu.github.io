@@ -3,7 +3,7 @@ const ctx = canvas.getContext('2d');
 const gameOverDiv = document.getElementById('game-over');
 const gameOverText = document.getElementById('game-over-text');
 
-// Set canvas dimensions
+// Set canvas dimensions (fixed size)
 canvas.width = 400;
 canvas.height = 600;
 
@@ -13,7 +13,7 @@ const carWidth = canvas.width / (laneCount + 2);
 const carHeight = 50;
 let playerCar = { x: 1, y: canvas.height - carHeight * 2, lane: 1 };
 let obstacles = [];
-let speed = 2;
+let speed = 1; // Start with a slower speed
 let score = 0;
 let highScore = 0;
 let gameRunning = true;
@@ -56,8 +56,8 @@ function draw() {
     // Draw score and high score
     ctx.fillStyle = 'white';
     ctx.font = '16px Arial';
-    ctx.fillText(`Score: ${score}`, 10, 20);
-    ctx.fillText(`High Score: ${highScore}`, 10, 40);
+    ctx.fillText(`Score: ${Math.floor(score)}`, 10, 20);
+    ctx.fillText(`High Score: ${Math.floor(highScore)}`, 10, 40);
 }
 
 // Update the game state
@@ -85,11 +85,11 @@ function update() {
     });
 
     // Increase score and difficulty
-    score += 1;
+    score += 0.01; // Slower score increment
     if (score > highScore) highScore = score;
-    if (score % 500 === 0) speed += 0.5;
+    if (score % 100 === 0) speed += 0.1; // Gradually increase speed
 
-    // Add new obstacles less frequently
+    // Add new obstacles less frequently at the start
     if (Math.random() < 0.02) createObstacle();
 }
 
@@ -107,14 +107,55 @@ function movePlayer(direction) {
 
 // Display game over screen
 function displayGameOver() {
-    gameOverDiv.classList.remove('hidden');
-    gameOverText.textContent = `Your score: ${score}`;
+    gameOverText.innerHTML = `Your score: ${Math.floor(score)}<br>`;
     if (score >= highScore) {
-        gameOverText.textContent += `\nNew Highscore: ${highScore}`;
+        gameOverText.innerHTML += `New Highscore: ${Math.floor(highScore)}<br>`;
     }
+    gameOverDiv.classList.remove('hidden');
     gameOverDiv.style.visibility = 'visible';
 }
 
 // Reset the game
 function resetGame() {
-    playerCar = { x: 1 * car
+    playerCar = { x: 1 * carWidth + carWidth, y: canvas.height - carHeight * 2, lane: 1 };
+    obstacles = [];
+    speed = 1; // Reset speed
+    score = 0;
+    gameRunning = true;
+    gameOverDiv.classList.add('hidden');
+    gameOverDiv.style.visibility = 'hidden';
+}
+
+// Game loop
+function gameLoop() {
+    draw();
+    update();
+    if (gameRunning) requestAnimationFrame(gameLoop);
+}
+
+// Handle keyboard input
+document.addEventListener('keydown', () => {
+    if (!gameRunning) {
+        resetGame();
+        gameLoop();
+    }
+});
+
+// Handle player movement
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') movePlayer('left');
+    if (e.key === 'ArrowRight') movePlayer('right');
+});
+
+// Scroll event for background color change
+window.addEventListener('scroll', () => {
+    if (window.scrollY > window.innerHeight) {
+        document.body.classList.add('black-bg');
+    } else {
+        document.body.classList.remove('black-bg');
+    }
+});
+
+// Initialize game
+resetGame();
+gameLoop();
