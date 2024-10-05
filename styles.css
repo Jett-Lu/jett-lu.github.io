@@ -55,7 +55,7 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    visibility: hidden; /* Hidden by default */
+    visibility: hidden;
 }
 
 #game-over-box {

@@ -243,6 +243,7 @@ function resetGame() {
     gameOverDiv.style.visibility = 'hidden';
 }
 
+
 // Initial game setup
 resetGame();
 gameLoop();
