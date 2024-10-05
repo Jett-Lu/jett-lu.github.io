@@ -156,13 +156,13 @@ function displayGameOver() {
     if (score >= highScore) {
         gameOverText.innerHTML += `New Highscore:<br><br>${Math.floor(highScore)}<br><br>`;
     }
+    gameOverText.innerHTML += `Press any key to try again.`; // Add this message only for the game-over state
     gameOverDiv.classList.remove('hidden');
     gameOverDiv.style.visibility = 'visible';
 }
 
 // Pause the game when scrolling down
 window.addEventListener('scroll', () => {
-    // Get the bottom position of the game container
     const gameContainerBottom = document.getElementById('game-container').getBoundingClientRect().bottom;
 
     // Change color and apply glowing effect to "Jett Lu" when it's about to exit the game section

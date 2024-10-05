@@ -153,6 +153,13 @@ body {
     cursor: pointer;
 }
 
+#contact-icons img {
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+}
+
+
 body.black-bg #background-title {
     color: rgba(0, 0, 0, 0.2);
 }
