@@ -161,3 +161,59 @@ body.black-bg #background-title {
 html {
     scroll-behavior: smooth;
 }
+
+/* Styles for the pause popup */
+#pause-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 20px;
+    border: 2px solid white;
+    text-align: center;
+    font-size: 20px;
+    visibility: hidden;
+    z-index: 100;
+}
+
+/* Fixed Name Title with glow effect */
+#fixed-name-title {
+    position: fixed;
+    top: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 36px;
+    font-family: 'Arial', sans-serif;
+    color: white;
+    transition: color 0.5s, text-shadow 0.5s;
+}
+
+/* Pause screen styles */
+#pause-popup {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 20px;
+    border: 2px solid white;
+    text-align: center;
+    font-size: 20px;
+    visibility: hidden;
+    z-index: 100;
+}
+
+/* Fixed Name Title */
+#fixed-name-title {
+    position: fixed;
+    top: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 36px;
+    font-family: 'Arial', sans-serif;
+    color: white;
+    transition: color 0.5s, text-shadow 0.5s;
+}
