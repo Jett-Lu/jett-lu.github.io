@@ -194,7 +194,14 @@ window.addEventListener('scroll', () => {
         fixedNameTitle.style.color = 'white';
         fixedNameTitle.style.textShadow = 'none'; // Remove glow effect
     }
+
+    // Pause the game when scrolling past the game container
+    if (gameContainerBottom < 50 && !isPaused && !gameOver) {
+        isPaused = true;
+        displayPauseMessage();
+    }
 });
+
 // Event listener for key presses to resume the game
 document.addEventListener('keydown', (e) => {
     if (isPaused) {
