@@ -180,24 +180,21 @@ function resumeGame() {
 
 // Pause the game when scrolling down
 window.addEventListener('scroll', () => {
-    const gameContainerBottom = document.getElementById('game-container').getBoundingClientRect().bottom;
+    const gameContainer = document.getElementById('game-container');
+    const gameContainerBottom = gameContainer.getBoundingClientRect().bottom;
 
-    // Change color and apply glowing effect to "Jett Lu" when it's about to exit the game section
-    if (gameContainerBottom < window.innerHeight) {
+    // Adjust this value to get closer to the actual boundary
+    const boundaryThreshold = 150; 
+
+    // Change color and apply a less intense glowing effect to "Jett Lu" when close to the transition point
+    if (gameContainerBottom < window.innerHeight + boundaryThreshold) {
         fixedNameTitle.style.color = 'black';
-        fixedNameTitle.style.textShadow = '0 0 20px white, 0 0 30px white, 0 0 40px white'; // Bigger glow effect
+        fixedNameTitle.style.textShadow = '0 0 10px rgba(255, 255, 255, 0.5), 0 0 15px rgba(255, 255, 255, 0.3)'; // Reduced glow effect
     } else {
         fixedNameTitle.style.color = 'white';
         fixedNameTitle.style.textShadow = 'none'; // Remove glow effect
     }
-
-    // Pause the game when scrolling past the game container
-    if (gameContainerBottom < 50 && !isPaused && !gameOver) {
-        isPaused = true;
-        displayPauseMessage();
-    }
 });
-
 // Event listener for key presses to resume the game
 document.addEventListener('keydown', (e) => {
     if (isPaused) {
