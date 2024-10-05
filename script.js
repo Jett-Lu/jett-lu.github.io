@@ -137,28 +137,45 @@ function update() {
 
 // Display "Game Paused" message
 function displayPauseMessage() {
+    // Clear the content of gameOverText to avoid duplication
+    gameOverText.innerHTML = '';
+
+    // Set the text for the pause screen
     gameOverText.innerHTML = `Game Paused.<br><br>Press any key to resume.`;
+    
+    // Show the gameOverDiv as the pause screen
+    gameOverDiv.classList.remove('hidden');
+    gameOverDiv.style.visibility = 'visible';
+}
+
+// Display the game-over screen
+function displayGameOver() {
+    // Clear the content of gameOverText to avoid duplication
+    gameOverText.innerHTML = '';
+
+    // Set the text for the game-over screen
+    gameOverText.innerHTML = `Your score:<br><br>${Math.floor(score)}<br><br>`;
+    if (score >= highScore) {
+        gameOverText.innerHTML += `New Highscore:<br><br>${Math.floor(highScore)}<br><br>`;
+    }
+    gameOverText.innerHTML += `Press any key to try again.`;
+
+    // Show the gameOverDiv as the game-over screen
     gameOverDiv.classList.remove('hidden');
     gameOverDiv.style.visibility = 'visible';
 }
 
 // Hide pause message and resume the game
 function resumeGame() {
+    // Clear the content of gameOverText before resuming the game
+    gameOverText.innerHTML = '';
+
+    // Hide the gameOverDiv
     gameOverDiv.classList.add('hidden');
     gameOverDiv.style.visibility = 'hidden';
+
     isPaused = false;
     gameLoop();
-}
-
-// Display the game-over screen
-function displayGameOver() {
-    gameOverText.innerHTML = `Your score:<br><br>${Math.floor(score)}<br><br>`;
-    if (score >= highScore) {
-        gameOverText.innerHTML += `New Highscore:<br><br>${Math.floor(highScore)}<br><br>`;
-    }
-    gameOverText.innerHTML += `Press any key to try again.`; // Add this message only for the game-over state
-    gameOverDiv.classList.remove('hidden');
-    gameOverDiv.style.visibility = 'visible';
 }
 
 // Pause the game when scrolling down
