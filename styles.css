@@ -12,20 +12,21 @@ body {
     color: #000;
     overflow-x: hidden;
     transition: background-color 1s, color 1s;
+    text-align: center;
 }
 
 /* Large Background Name Title */
 #background-title {
     position: absolute;
-    top: 40%; /* Adjusted to center behind the game canvas */
+    top: 40%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 180px; /* Adjust font size to fit behind the game */
-    font-family: 'Arial Black', sans-serif; /* Modern, bold font */
-    color: rgba(255, 255, 255, 0.2); /* Higher opacity */
-    z-index: 1; /* Place behind the game container */
-    pointer-events: none; /* Allow interactions with elements above it */
-    white-space: nowrap; /* Prevent line breaks */
+    font-size: 180px;
+    font-family: 'Arial Black', sans-serif;
+    color: rgba(255, 255, 255, 0.2);
+    z-index: 1;
+    pointer-events: none;
+    white-space: nowrap;
 }
 
 /* Fullscreen Game Container */
@@ -37,7 +38,7 @@ body {
     justify-content: center;
     align-items: center;
     background-color: #000;
-    z-index: 2; /* Place above the background title */
+    z-index: 2;
 }
 
 /* Game Canvas */
@@ -89,10 +90,33 @@ body {
     margin: 0 20px;
 }
 
+/* Menu links */
 .menu ul li a {
     text-decoration: none;
     color: inherit;
     font-size: 18px;
+    padding: 5px 10px;
+    background-color: white;
+    transition: border 0.3s;
+}
+
+/* Hover effect for menu items */
+.menu ul li a:hover {
+    border: 2px solid black;
+}
+
+/* Fixed Name Title */
+#fixed-name-title {
+    position: fixed;
+    top: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 36px;
+    font-family: 'Arial', sans-serif;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    z-index: 99;
+    transition: color 0.5s, text-shadow 0.5s;
 }
 
 /* Section Styles */
@@ -100,18 +124,25 @@ body {
     padding-top: 20px;
 }
 
-section {
+/* Content Box - Initially white with no border */
+.content-box {
     width: 80%;
     max-width: 1000px;
     margin: 50px auto;
     padding: 20px;
-    background-color: #f8f8f8;
-    border-radius: 10px;
+    background-color: white;
+    transition: border 0.3s;
+}
+
+/* Hover Effect: Show a black border */
+.content-box:hover {
+    border: 2px solid black;
 }
 
 /* Contact Icons */
 #contact-icons {
     display: flex;
+    justify-content: center;
     gap: 20px;
     margin-top: 10px;
 }
@@ -123,7 +154,7 @@ section {
 }
 
 body.black-bg #background-title {
-    color: rgba(0, 0, 0, 0.2); /* Lower opacity black for better contrast */
+    color: rgba(0, 0, 0, 0.2);
 }
 
 /* Smooth Scrolling */
