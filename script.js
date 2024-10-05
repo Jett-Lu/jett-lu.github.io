@@ -186,19 +186,15 @@ window.addEventListener('scroll', () => {
     // Adjust this value to get closer to the actual boundary
     const boundaryThreshold = 150; 
 
-    // Change color and apply a less intense glowing effect to "Jett Lu" when close to the transition point
-    if (gameContainerBottom < window.innerHeight + boundaryThreshold) {
+    // If scrolling down past the threshold, change the color to black
+    if (gameContainerBottom < boundaryThreshold) {
         fixedNameTitle.style.color = 'black';
         fixedNameTitle.style.textShadow = '0 0 10px rgba(255, 255, 255, 0.5), 0 0 15px rgba(255, 255, 255, 0.3)'; // Reduced glow effect
-    } else {
+    } 
+    // If scrolling up above the threshold, change the color back to white
+    else if (gameContainerBottom >= boundaryThreshold) {
         fixedNameTitle.style.color = 'white';
         fixedNameTitle.style.textShadow = 'none'; // Remove glow effect
-    }
-
-    // Pause the game when scrolling past the game container
-    if (gameContainerBottom < 50 && !isPaused && !gameOver) {
-        isPaused = true;
-        displayPauseMessage();
     }
 });
 
