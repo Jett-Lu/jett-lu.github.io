@@ -87,21 +87,22 @@ function draw() {
     ctx.fillText(`High Score: ${Math.floor(highScore)}`, 10, 40);
 }
 
-// Get the lane center position for drawing
 function getLaneCenterX(lane, yPosition) {
     const roadWidthBottom = canvas.width / 3;
     const roadWidthTop = canvas.width - 50;
     const laneWidthBottom = roadWidthBottom / laneCount;
     const laneWidthTop = roadWidthTop / laneCount;
 
+    // Linear interpolation to get the correct lane width at a specific y-position
     const t = yPosition / canvas.height;
 
+    // Calculate the lane width and offset
     const laneWidth = laneWidthBottom * (1 - t) + laneWidthTop * t;
     const roadOffset = (canvas.width - (roadWidthBottom * (1 - t) + roadWidthTop * t)) / 2;
 
+    // Return the center x-position of the specified lane
     return roadOffset + lane * laneWidth + laneWidth / 2;
 }
-
 // Update game state
 function update() {
     if (!gameRunning || isPaused || gameOver) return;
@@ -137,17 +138,13 @@ function update() {
 
 // Display "Game Paused" message
 function displayPauseMessage() {
-    // Clear the content of gameOverText to avoid duplication
-    gameOverText.innerHTML = '';
+    // Prevent showing the pause pop-up if the game-over screen is active
+    if (gameOverDiv.style.visibility === 'visible') return;
 
-    // Set the text for the pause screen
-    gameOverText.innerHTML = `Game Paused.<br><br>Press any key to resume.`;
-    
-    // Show the gameOverDiv as the pause screen
+    gameOverText.innerHTML = 'Game Paused.<br><br>Press any key to resume.';
     gameOverDiv.classList.remove('hidden');
     gameOverDiv.style.visibility = 'visible';
 }
-
 // Display the game-over screen
 function displayGameOver() {
     // Clear the content of gameOverText to avoid duplication
@@ -167,36 +164,37 @@ function displayGameOver() {
 
 // Hide pause message and resume the game
 function resumeGame() {
-    // Clear the content of gameOverText before resuming the game
-    gameOverText.innerHTML = '';
-
-    // Hide the gameOverDiv
     gameOverDiv.classList.add('hidden');
     gameOverDiv.style.visibility = 'hidden';
-
     isPaused = false;
     gameLoop();
 }
 
 // Pause the game when scrolling down
+// Pause the game when scrolling down
 window.addEventListener('scroll', () => {
     const gameContainer = document.getElementById('game-container');
     const gameContainerBottom = gameContainer.getBoundingClientRect().bottom;
-
-    // Adjust this value to get closer to the actual boundary
     const boundaryThreshold = 150; 
 
-    // If scrolling down past the threshold, change the color to black
-    if (gameContainerBottom < boundaryThreshold) {
-        fixedNameTitle.style.color = 'black';
-        fixedNameTitle.style.textShadow = '0 0 10px rgba(255, 255, 255, 0.5), 0 0 15px rgba(255, 255, 255, 0.3)'; // Reduced glow effect
-    } 
-    // If scrolling up above the threshold, change the color back to white
-    else if (gameContainerBottom >= boundaryThreshold) {
-        fixedNameTitle.style.color = 'white';
-        fixedNameTitle.style.textShadow = 'none'; // Remove glow effect
+    // Only pause if the game is running and not already in a "game over" state
+    if (gameContainerBottom < boundaryThreshold && !isPaused && !gameOver) {
+        isPaused = true;
+        displayPauseMessage(); // Show pause pop-up
     }
 });
+document.addEventListener('keydown', () => {
+    if (isPaused && !gameOver) {
+        resumeGame(); // Resume game when paused due to scrolling
+    } else if (gameOver) {
+        resetGame(); // Reset the game if it's over
+        gameLoop();
+    } else if (gameRunning) {
+        if (event.key === 'ArrowLeft') movePlayer('left');
+        if (event.key === 'ArrowRight') movePlayer('right');
+    }
+});
+
 
 // Event listener for key presses to resume the game
 document.addEventListener('keydown', (e) => {
@@ -214,22 +212,21 @@ document.addEventListener('keydown', (e) => {
 // Move the player
 function movePlayer(direction) {
     if (direction === 'left' && playerCar.lane > 0) {
-        playerCar.lane--;
+        playerCar.lane--; // Move left if not already in the leftmost lane
     }
     if (direction === 'right' && playerCar.lane < laneCount - 1) {
-        playerCar.lane++;
+        playerCar.lane++; // Move right if not already in the rightmost lane
     }
 }
 
 // Game loop function
 function gameLoop() {
-    if (gameRunning && !isPaused && !gameOver) {
+    if (!isPaused && !gameOver) {
         draw();
         update();
         requestAnimationFrame(gameLoop);
     }
 }
-
 // Reset the game state
 function resetGame() {
     playerCar = { y: canvas.height - carHeight * 2, lane: 1 };
