@@ -84,6 +84,7 @@ body {
     align-items: center;
     background-color: #000;
     z-index: 2;
+    margin-bottom: 50px;  /* was 50px */
 }
 #gameCanvas {
     background-color: #000;
@@ -176,7 +177,7 @@ body {
   text-align: center;
   font-size: 13px;
   color: #aaa;
-  margin: 60px 0 30px;
+  margin: 50px 0 30px;
 }
 #site-footer a {
   color: #ccc;
@@ -199,4 +200,15 @@ body {
 .project-grid:hover .project-card:not(:hover) {
   transform: scale(0.9);
   opacity: 0.5;
+}
+
+.fade-in-section {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 3s ease-out, transform 3s ease-out;
+}
+
+.fade-in-section.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
