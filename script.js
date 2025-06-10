@@ -104,7 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function displayPauseMessage() {
     if (!isPaused && !gameOver) {
       isPaused = true;
-      gameOverText.innerHTML = 'Game Paused.<br>Press any key to resume.';
+      gameOverText.innerHTML = 'Game Paused.<br><br>Press any key to resume.';
       gameOverDiv.style.visibility = 'visible';
     }
   }

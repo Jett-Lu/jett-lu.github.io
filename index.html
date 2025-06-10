@@ -1,102 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jett Lu</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <!-- NAVIGATION -->
-  <nav class="menu">
-    <ul>
-      <li><a href="#about">About</a></li>
-      <li><a href="#projects">Projects</a></li>
-      <li><a href="#contact">Contact</a></li>
-      <li><a href="Resume-JettLu.pdf" target="_blank">Resume</a></li>
-    </ul>
-  </nav>
-
-  <!-- NAME (top title easter egg hidden) -->
-  <div id="fixed-name-title">Jett Lu</div>
-
-  <!-- GAME SECTION -->
-  <div id="game-container">
-    <canvas id="gameCanvas"></canvas>
-    <div id="game-over">
-      <div id="game-over-box">
-        <p id="game-over-text">Game Over</p>
+  
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>
+      Jett Lu
+    </title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  
+  <body>
+    <!-- NAVIGATION -->
+    <nav class="menu">
+      <ul>
+        <li>
+          <a href="#about">
+            About
+          </a>
+        </li>
+        <li>
+          <a href="#projects">
+            Projects
+          </a>
+        </li>
+        <li>
+          <a href="#contact">
+            Contact
+          </a>
+        </li>
+        <li>
+          <a href="Resume-JettLu.pdf" target="_blank">
+            Resume
+          </a>
+        </li>
+      </ul>
+    </nav>
+    <!-- NAME (top title easter egg hidden) -->
+    <div id="fixed-name-title">
+      Jett Lu
+    </div>
+    <!-- GAME SECTION -->
+    <div id="game-container">
+      <canvas id="gameCanvas">
+      </canvas>
+      <div id="game-over">
+        <div id="game-over-box">
+          <p id="game-over-text">
+            Game Over
+          </p>
+        </div>
       </div>
     </div>
-  </div>
+    <!-- ABOUT SECTION -->
+    <section id="about" class="content-box">
+      <h2>
+        About Me
+      </h2>
+      <p>
+        My name is Jett, currently an Engineering Associate Co-Op at the Ontario
+        Ministry of Transportation, where I work hands-on with QA testing and automation
+        for Laboratory Information Management Systems. My role bridges software
+        and systems, helping ensure data accuracy, regulatory compliance, and operational
+        reliability across critical lab infrastructure. I contribute to streamlining
+        CI/CD pipelines, supporting DevOps initiatives, and improving internal
+        tools through scripting and test automation.
+        <br>
+        <br>
+      </p>
+      <p>
+        My passion for technology started early. Growing up, I was the kid who
+        dismantled electronics just to figure out how they worked. I joined my
+        school’s robotics club in elementary and again in high school, where I
+        first got to see what code could do in the real world. That experience
+        got me hooked on computers, and I’ve been building, fixing, and experimenting
+        ever since—whether it was programming microcontrollers, writing scripts
+        to automate tedious tasks, or building PCs from scratch.
+        <br>
+        <br>
+      </p>
+      <p>
+        I earned an Advanced Diploma in Computer Engineering Technology from Seneca
+        Polytechnic, where I made the President’s Honour List multiple times. I’m
+        now pursuing my Bachelor of Technology in Software Engineering Technology
+        at McMaster University. I work fluently in C, Python, PowerShell, and embedded
+        development environments, and I’m especially interested in open-source
+        collaboration, security practices, and building systems that scale and
+        last.
+      </p>
+    </section>
+    <!-- PROJECTS SECTION -->
+    <section id="projects" class="content-box">
+      <h2>
+        Projects
+      </h2>
+      <!-- MOVE the button below the cards, center with CSS -->
+      <div id="project-container" class="project-grid">
+      </div>
+      <button id="refresh-projects">
+      Refresh Projects
+      </button>
+      <!-- UPDATE -->
+    </section>
+    <!-- CONTACT SECTION -->
+    <section id="contact" class="content-box">
+      <h2>
+        Contact
+      </h2>
+      <!-- SOCIAL ICONS -->
+      <div id="contact-icons">
+        <a href="mailto:Jett.Jiacheng.Lu@gmail.com">
+          <img src="email-icon.png" alt="Email">
+        </a>
+        <a href="https://github.com/Jett-Lu" target="_blank">
+          <img src="github-icon.png" alt="GitHub">
+        </a>
+        <a href="https://linkedin.com/in/jett-lu" target="_blank">
+          <img src="linkedin-icon.png" alt="LinkedIn">
+        </a>
+      </div>
+    </section>
+    <!-- FOOTER -->
+    <footer id="site-footer">
+      <p>
+        © 2025 Jett Lu — All rights reserved.
+      </p>
+      <p>
+        Site code available
+        <a href="https://github.com/Jett-Lu/jett-lu.github.io" target="_blank">
+          on GitHub
+        </a>
+        .
+      </p>
+      <p>
+        Last updated: June 2025
+      </p>
+    </footer>
+    <!-- SCRIPT -->
+    <script src="script.js">
+    </script>
+  </body>
 
-  <!-- ABOUT SECTION -->
-  <section id="about" class="content-box">
-    <h2>About Me</h2>
-    <p>
-      My name is Jett, currently an Engineering Associate Co-Op at the Ontario Ministry of Transportation,
-      where I work hands-on with QA testing and automation for Laboratory Information
-      Management Systems (LIMS). My role bridges software and systems, helping
-      ensure data accuracy, regulatory compliance, and operational reliability
-      across critical lab infrastructure. I contribute to streamlining CI/CD
-      pipelines, supporting DevOps initiatives, and improving internal tools
-      through scripting and test automation.<br><br> 
-    </p>
-    <p>
-      My passion for technology started early. Growing up, I was the kid who
-      dismantled electronics just to figure out how they worked. I joined my
-      school’s robotics club in elementary and again in high school, where I
-      first got to see what code could do in the real world. That experience
-      got me hooked on computers, and I’ve been building, fixing, and experimenting
-      ever since—whether it was programming microcontrollers, writing scripts
-      to automate tedious tasks, or building PCs from scratch.<br><br> 
-    </p>
-    <p>
-      I earned an Advanced Diploma in Computer Engineering Technology from Seneca
-      Polytechnic, where I made the President’s Honour List multiple times. I’m
-      now pursuing my Bachelor of Technology in Software Engineering Technology
-      at McMaster University. I work fluently in C, Python, PowerShell, and embedded
-      development environments, and I’m especially interested in open-source
-      collaboration, security practices, and building systems that scale and
-      last.
-    </p>
-  </section>
-
-  <!-- PROJECTS SECTION -->
-  <section id="projects" class="content-box">
-    <h2>Projects</h2>
-
-    <!-- MOVE the button below the cards, center with CSS -->  
-    <div id="project-container" class="project-grid"></div>  
-
-    <button id="refresh-projects">🔄 Refresh Projects</button>  <!-- UPDATE -->
-  </section>
-
-  <!-- CONTACT SECTION -->
-  <section id="contact" class="content-box">
-    <h2>Contact</h2>
-    <!-- SOCIAL ICONS -->
-    <div id="contact-icons">
-      <a href="mailto:Jett.Jiacheng.Lu@gmail.com">
-        <img src="email-icon.png" alt="Email">
-      </a>
-      <a href="https://github.com/Jett-Lu" target="_blank">
-        <img src="github-icon.png" alt="GitHub">
-      </a>
-      <a href="https://linkedin.com/in/jett-lu" target="_blank">
-        <img src="linkedin-icon.png" alt="LinkedIn">
-      </a>
-    </div>
-  </section>
-
-  <!-- FOOTER -->
-  <footer id="site-footer">
-    <p>© 2025 Jett Lu — All rights reserved.</p>
-    <p>Site code available <a href="https://github.com/Jett-Lu/jett-lu.github.io" target="_blank">on GitHub</a>.</p>
-    <p>Last updated: June 2025</p>
-  </footer>
-
-  <!-- SCRIPT -->
-  <script src="script.js"></script>
-</body>
 </html>
