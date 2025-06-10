@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-  //GAME SECTION
+  // ———————————————————————————————
+  // 🕹️ GAME SECTION
+  // ———————————————————————————————
 
   const canvas        = document.getElementById('gameCanvas');
   const ctx           = canvas.getContext('2d');
@@ -133,9 +135,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const moveAmt = speed * (deltaTime * 60);
     obstacles.forEach(o => o.y += moveAmt);
-    obstacles    = obstacles.filter(o => o.y < canvas.height + 50);
+    obstacles = obstacles.filter(o => o.y < canvas.height + 50);
 
-    //Hitbox detection
+    // Hitbox detection
     const pW = ctx.measureText(playerCarArt).width;
     const pH = 20;
     const pX = getLaneCenterX(playerCar.lane, playerCar.y) - pW / 2;
@@ -145,7 +147,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const oW = 20, oH = 20;
       const oX = getLaneCenterX(o.x, o.y) - oW / 2;
       const oY = o.y - oH;
-
       if (
         pX < oX + oW &&
         pX + pW > oX &&
@@ -175,9 +176,9 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(mainLoop);
   }
 
-  document.addEventListener('keydown', (e) => {
-    if (gameOver)       resetGame();
-    else if (isPaused)  resumeGame();
+  document.addEventListener('keydown', e => {
+    if (gameOver)      resetGame();
+    else if (isPaused) resumeGame();
     else if (e.key === 'ArrowLeft')  playerCar.lane = Math.max(0, playerCar.lane - 1);
     else if (e.key === 'ArrowRight') playerCar.lane = Math.min(laneCount - 1, playerCar.lane + 1);
   });
@@ -186,7 +187,10 @@ document.addEventListener("DOMContentLoaded", () => {
   resetGame();
   requestAnimationFrame(mainLoop);
 
-  //GITHUB PROJECT SECTION
+
+  // ———————————————————————————————
+  // 🧠 GITHUB PROJECT SECTION
+  // ———————————————————————————————
 
   async function loadProjects() {
     const container = document.getElementById('project-container');
@@ -198,20 +202,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const res      = await fetch('https://api.github.com/users/Jett-Lu/repos');
       const allRepos = await res.json();
 
-      // UPDATE: include all non-fork repos, even without description
+      // include all non-fork repos
       const repos = allRepos.filter(r => !r.fork);
 
       const selected = repos.sort(() => 0.5 - Math.random()).slice(0, 3);
       container.innerHTML = '';
 
       for (const repo of selected) {
-        // fallback if no description
-        const desc = repo.description || 'No description provided.';
-        let langList = 'N/A';
+        const desc     = repo.description || 'No description provided.';
+        let langList   = 'N/A';
         try {
-          const langRes  = await fetch(repo.languages_url);
-          const langs    = await langRes.json();
-          langList       = Object.keys(langs).join(', ') || 'N/A';
+          const langRes = await fetch(repo.languages_url);
+          const langs   = await langRes.json();
+          langList      = Object.keys(langs).join(', ') || 'N/A';
         } catch (err) {
           console.warn("Language fetch failed:", repo.name, err);
         }
@@ -228,12 +231,29 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch (err) {
       console.error('GitHub fetch failed:', err);
-      container.innerHTML = '<p>Failed to load projects</p>';
+      container.innerHTML = '<p>Failed to load projects 😢</p>';
     }
   }
 
   const refreshBtn = document.getElementById('refresh-projects');
   if (refreshBtn) refreshBtn.addEventListener('click', loadProjects);
   loadProjects();
+
+
+  // ———————————————————————————————
+  // FADE-IN ON SCROLL
+  // ———————————————————————————————
+
+  const fadeEls = document.querySelectorAll('.fade-in-section');
+  const observer = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        obs.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  fadeEls.forEach(el => observer.observe(el));
 
 });

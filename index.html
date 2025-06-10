@@ -1,123 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
-  
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>
-      Jett Lu
-    </title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  
-  <body>
-    <!-- NAVIGATION -->
-    <nav class="menu">
-      <ul>
-        <li>
-          <a href="#about">
-            About
-          </a>
-        </li>
-        <li>
-          <a href="#projects">
-            Projects
-          </a>
-        </li>
-        <li>
-          <a href="#contact">
-            Contact
-          </a>
-        </li>
-        <li>
-          <a href="Resume-JettLu.pdf" target="_blank">
-            Resume
-          </a>
-        </li>
-      </ul>
-    </nav>
-    <!-- NAME (top title easter egg hidden) -->
-    <div id="fixed-name-title">
-      Jett Lu
-    </div>
-    <!-- GAME SECTION -->
-    <div id="game-container">
-      <canvas id="gameCanvas">
-      </canvas>
-      <div id="game-over">
-        <div id="game-over-box">
-          <p id="game-over-text">
-            Game Over
-          </p>
-        </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jett Lu</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- NAVIGATION -->
+  <nav class="menu">
+    <ul>
+      <li><a href="#about">About</a></li>
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#contact">Contact</a></li>
+      <li><a href="Resume-JettLu.pdf" target="_blank">Resume</a></li>
+    </ul>
+  </nav>
+
+  <!-- HIDDEN EASTER EGG TITLE -->
+  <div id="fixed-name-title">Jett Lu</div>
+
+  <!-- GAME SECTION -->
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="game-over">
+      <div id="game-over-box">
+        <p id="game-over-text">Game Over</p>
       </div>
     </div>
-    <!-- ABOUT SECTION -->
-<section id="about" class="content-box">
-  <h2>About Me</h2>
-  <p>
-    I’m Jett, an Engineering Associate Co-Op at the Ontario Ministry of Transportation, working on QA testing and automation for Laboratory Information Management Systems. My role combines software and systems to improve data accuracy, compliance, and internal tooling through scripting and CI/CD support.
-  </p>
-  <br>
-  <p>
-    My interest in tech began early through robotics clubs and hands-on tinkering. I’ve since pursued embedded systems, scripting, and full-stack development—building everything from automation tools to hardware projects.
-  </p>
-  <br>
-  <p>
-    I hold an Advanced Diploma in Computer Engineering Technology from Seneca Polytechnic, where I made the President’s Honour List multiple times, and I’m currently pursuing a Bachelor of Technology in Software Engineering Technology at McMaster University. I work fluently in C, Python, and PowerShell, and I’m especially passionate about open-source collaboration and building secure, scalable systems.
-  </p>
-</section>
+  </div>
 
-    <!-- PROJECTS SECTION -->
-    <section id="projects" class="content-box">
-      <h2>
-        Projects
-      </h2>
-      <!-- MOVE the button below the cards, center with CSS -->
-      <div id="project-container" class="project-grid">
-      </div>
-      <button id="refresh-projects">
-      Refresh Projects
-      </button>
-      <!-- UPDATE -->
-    </section>
-    <!-- CONTACT SECTION -->
-    <section id="contact" class="content-box">
-      <h2>
-        Contact
-      </h2>
-      <!-- SOCIAL ICONS -->
-      <div id="contact-icons">
-        <a href="mailto:Jett.Jiacheng.Lu@gmail.com">
-          <img src="email-icon.png" alt="Email">
-        </a>
-        <a href="https://github.com/Jett-Lu" target="_blank">
-          <img src="github-icon.png" alt="GitHub">
-        </a>
-        <a href="https://linkedin.com/in/jett-lu" target="_blank">
-          <img src="linkedin-icon.png" alt="LinkedIn">
-        </a>
-      </div>
-    </section>
-    <!-- FOOTER -->
-    <footer id="site-footer">
-      <p>
-        © 2025 Jett Lu — All rights reserved.
-      </p>
-      <p>
-        Site code available
-        <a href="https://github.com/Jett-Lu/jett-lu.github.io" target="_blank">
-          on GitHub
-        </a>
-        .
-      </p>
-      <p>
-        Last updated: June 2025
-      </p>
-    </footer>
-    <!-- SCRIPT -->
-    <script src="script.js">
-    </script>
-  </body>
+  <!-- ABOUT SECTION -->
+  <section id="about" class="content-box fade-in-section">
+    <h2>About Me</h2>
+    <p>
+      I’m Jett, an Engineering Associate Co-Op at the Ontario Ministry of Transportation, working on QA testing and automation for Laboratory Information Management Systems. My role combines software and systems to improve data accuracy, compliance, and internal tooling through scripting and CI/CD support.
+    </p><br>
+    <p>
+      My interest in tech began early through robotics clubs and hands-on tinkering. I’ve since pursued embedded systems, scripting, and full-stack development—building everything from automation tools to hardware projects.
+    </p><br>
+    <p>
+      I hold an Advanced Diploma in Computer Engineering Technology from Seneca Polytechnic, where I made the President’s Honour List multiple times, and I’m currently pursuing a Bachelor of Technology in Software Engineering Technology at McMaster University. I work fluently in C, Python, and PowerShell, and I’m especially passionate about open-source collaboration and building secure, scalable systems.
+    </p>
+  </section>
 
+  <!-- PROJECTS SECTION -->
+  <section id="projects" class="content-box fade-in-section">
+    <h2>Projects</h2>
+    <div id="project-container" class="project-grid"></div>
+    <button id="refresh-projects">Refresh Projects</button>
+  </section>
+
+  <!-- CONTACT SECTION -->
+  <section id="contact" class="content-box fade-in-section">
+    <h2>Contact</h2>
+    <div id="contact-icons">
+      <a href="mailto:Jett.Jiacheng.Lu@gmail.com"><img src="email-icon.png" alt="Email"></a>
+      <a href="https://github.com/Jett-Lu" target="_blank"><img src="github-icon.png" alt="GitHub"></a>
+      <a href="https://linkedin.com/in/jett-lu" target="_blank"><img src="linkedin-icon.png" alt="LinkedIn"></a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer id="site-footer">
+    <p>© 2025 Jett Lu — All rights reserved.</p>
+    <p>Site code available <a href="https://github.com/Jett-Lu/jett-lu.github.io" target="_blank">on GitHub</a>.</p>
+    <p>Last updated: June 2025</p>
+  </footer>
+
+  <!-- MAIN SCRIPT -->
+  <script src="script.js"></script>
+</body>
 </html>

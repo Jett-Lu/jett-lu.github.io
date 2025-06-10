@@ -182,3 +182,21 @@ body {
   color: #ccc;
   text-decoration: underline;
 }
+
+/* SMOOTH TRANSITIONS ON ALL CARDS */
+.project-card {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* HOVER A SINGLE CARD TO ENLARGE & BRING FORWARD */
+.project-card:hover {
+  transform: scale(1.05);
+  opacity: 1;
+  z-index: 2; /* bring it above its siblings */
+}
+
+/* WHEN THE GRID IS HOVERED, DIM & SHRINK NON-HOVERED CARDS */
+.project-grid:hover .project-card:not(:hover) {
+  transform: scale(0.9);
+  opacity: 0.5;
+}
