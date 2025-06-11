@@ -205,10 +205,117 @@ body {
 .fade-in-section {
   opacity: 0;
   transform: translateY(20px);
-  transition: opacity 3s ease-out, transform 3s ease-out;
+  transition: opacity 1s ease-out, transform 1s ease-out;
 }
 
 .fade-in-section.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* ————————————————————————
+   MOBILE / TABLET RESPONSIVENESS
+———————————————————————— */
+
+/* Breakpoint 768px and below (tablets) */
+@media only screen and (max-width: 768px) {
+  /* Stack nav links vertically */
+  .menu ul {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .menu ul li {
+    margin: 5px 0;
+  }
+
+  /* Shrink fixed title slightly and move it up */
+  #fixed-name-title {
+    top: 80px;
+    font-size: 28px;
+  }
+
+  /* Make game canvas fluid */
+  #game-container {
+    height: auto;
+    margin-bottom: 50px; /* restore original spacing */
+  }
+  #gameCanvas {
+    width: 90%;
+    height: auto; /* maintains aspect ratio */
+  }
+
+  /* Content boxes narrower */
+  .content-box {
+    width: 90%;
+    margin: 80px auto;
+  }
+
+  /* Project cards stack */
+  .project-grid {
+    flex-direction: column;
+    gap: 15px;
+  }
+  .project-card {
+    width: 100%;
+    /* keep border and padding */
+  }
+  #refresh-projects {
+    width: 100%;
+    margin: 15px auto 0;
+  }
+}
+
+/* Breakpoint 480px and below (phones) */
+@media only screen and (max-width: 480px) {
+  .menu a {
+    font-size: 16px;
+    padding: 8px;
+  }
+  #fixed-name-title {
+    font-size: 24px;
+    top: 60px;
+  }
+  .content-box {
+    margin: 60px auto;
+    padding: 15px;
+  }
+  .project-card {
+    padding: 15px;
+    font-size: 14px;
+  }
+  #refresh-projects {
+    padding: 10px;
+    font-size: 16px;
+  }
+}
+
+/* Hamburger icon for mobile nav */
+#hamburger {
+  position: fixed;
+  top: 10px;
+  right: 20px;
+  font-size: 28px;
+  z-index: 101;
+  display: none;
+  cursor: pointer;
+}
+
+/* Hide nav menu by default on small screens */
+@media (max-width: 768px) {
+  .menu {
+    display: none;
+    flex-direction: column;
+    background: white;
+    width: 100%;
+    position: absolute;
+    top: 50px;
+    left: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  .menu.show {
+    display: flex;
+  }
+  #hamburger {
+    display: block;
+  }
 }
