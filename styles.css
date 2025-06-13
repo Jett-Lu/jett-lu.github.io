@@ -242,3 +242,15 @@ body {
     display: flex;
   }
 }
+
+.content-box {
+  border: 1px solid transparent;
+  transition:
+    border-color 0.1s ease,
+    border-width  0.2s ease 0.1s;
+}
+
+.content-box:hover {
+  border-color: black;
+  border-width: 2px;
+}
