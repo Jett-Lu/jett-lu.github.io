@@ -8,25 +8,21 @@
 </head>
 <body>
 
-  <!-- HAMBURGER MENU BUTTON -->
-  <div id="hamburger">&#9776;</div>
-
-  <!-- NAVIGATION (hidden on mobile until toggled) -->
-  <div id="nav-container">
-    <nav class="menu">
-      <ul>
-        <li><a href="#about">About</a></li>
-        <li><a href="#projects">Projects</a></li>
-        <li><a href="#contact">Contact</a></li>
-        <li><a href="Resume-JettLu.pdf" target="_blank">Resume</a></li>
-      </ul>
-    </nav>
-  </div>
+  <!-- NAVIGATION -->
+  <nav class="menu">
+    <button id="hamburger" aria-label="Menu">☰</button>
+    <ul id="nav-links">
+      <li><a href="#about">About</a></li>
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#contact">Contact</a></li>
+      <li><a href="Resume-JettLu.pdf" target="_blank">Resume</a></li>
+    </ul>
+  </nav>
 
   <!-- HIDDEN EASTER EGG TITLE -->
   <div id="fixed-name-title">Jett Lu</div>
 
-  <!-- GAME SECTION (no fade-in) -->
+  <!-- GAME SECTION -->
   <div id="game-container">
     <canvas id="gameCanvas"></canvas>
     <div id="game-over">
@@ -67,13 +63,12 @@
     </div>
   </section>
 
-  <!-- FOOTER (no fade-in) -->
+  <!-- FOOTER -->
   <footer id="site-footer">
     <p>© 2025 Jett Lu — All rights reserved.</p>
     <p>Site code available <a href="https://github.com/Jett-Lu/jett-lu.github.io" target="_blank">on GitHub</a>.</p>
   </footer>
 
-  <!-- MAIN SCRIPT -->
   <script src="script.js"></script>
 </body>
 </html>
