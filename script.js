@@ -96,6 +96,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const overlayText = document.getElementById("game-over-text");
   const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
+  // Hold-to-move flags (for touch + mouse)
+  let holdLeft = false;
+  let holdRight = false;
+
   let currentIndex = panels.length >= 2 ? 1 : 0;
 
   function isPlayMode() {
@@ -124,6 +128,26 @@ document.addEventListener("DOMContentLoaded", () => {
     const clampedTop = Math.max(padding, Math.min(maxTop, topInside));
 
     btn.style.top = `${clampedTop}px`;
+  }
+
+  function getActiveCanvas() {
+    const activePanel = document.querySelector(".game-panel.active");
+    if (!activePanel) return null;
+    return activePanel.querySelector("canvas");
+  }
+
+  function getCanvasXFromClient(clientX) {
+    const canvas = getActiveCanvas();
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width) return null;
+    // Map from CSS pixels back to canvas pixels
+    return (clientX - rect.left) * (canvas.width / rect.width);
+  }
+
+  function clearHolds() {
+    holdLeft = false;
+    holdRight = false;
   }
 
 
@@ -256,12 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  window.addEventListener("resize", () => {
-    requestAnimationFrame(() => {
-      centerActive(false);
-      positionPlayButton();
-    });
-  });
+  window.addEventListener("resize", () => requestAnimationFrame(() => centerActive(false)));
 
   // Start centered on Game 2
   setActive(currentIndex);
@@ -380,7 +399,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateCarGame(deltaTime) {
-    if (!isPlayMode() || currentIndex !== 1) return;
+    if (!isPlayMode() || currentIndex !== 0) return;
     if (carPaused || carGameOver) return;
 
     carSpeed += carAcceleration * deltaTime;
@@ -418,7 +437,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Pause on scroll only for active play
   window.addEventListener("scroll", () => {
-    if (!isPlayMode() || currentIndex !== 1) return;
+    if (!isPlayMode() || currentIndex !== 0) return;
     if (carGameOver) return;
     carPaused = true;
     if (overlay && overlayText) {
@@ -527,8 +546,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updateInvaders() {
     if (!invCanvas || !invCtx) return;
-    if (!isPlayMode() || currentIndex !== 0) return;
+    if (!isPlayMode() || currentIndex !== 1) return;
     if (inv.gameOver) return;
+
+    // Hold-to-move (touch/mouse). Uses same speed as keyboard feel.
+    if (holdLeft) inv.shipX -= 8;
+    if (holdRight) inv.shipX += 8;
 
     const now = Date.now();
     if (now - inv.lastShot > inv.shotMs) {
@@ -650,6 +673,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isPlayMode() || currentIndex !== 2) return;
     if (brick.gameOver) return;
 
+    // Hold-to-move (touch/mouse)
+    if (holdLeft) brick.paddleX -= 9;
+    if (holdRight) brick.paddleX += 9;
+
     brick.ballX += brick.ballDX;
     brick.ballY += brick.ballDY;
 
@@ -693,15 +720,63 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------
   // Controls + retry
   // -------------------------
+  // Touch and mouse controls (tap or hold on left/right half of the active canvas)
+  // -------------------------
+  function handlePressAtClientX(clientX) {
+    if (!isPlayMode()) return;
+    const x = getCanvasXFromClient(clientX);
+    if (x === null) return;
+
+    // Game 1: Car dodger (tap to change lanes)
+    if (currentIndex === 0 && !carGameOver) {
+      if (carPaused) resumeCarIfPaused();
+      if (x < 200) playerCar.lane = Math.max(0, playerCar.lane - 1);
+      else playerCar.lane = Math.min(2, playerCar.lane + 1);
+      return;
+    }
+
+    // Game 2/3: hold to move
+    holdLeft = x < 200;
+    holdRight = x >= 200;
+    if (currentIndex === 1 && invPaused) resumeInvadersIfPaused?.();
+    if (currentIndex === 2 && brickPaused) resumeBrickIfPaused?.();
+  }
+
+  function handleReleasePress() {
+    clearHolds();
+  }
+
+  // Pointer events cover mouse + touch on modern browsers
+  document.addEventListener("pointerdown", (e) => {
+    if (!isPlayMode()) return;
+    handlePressAtClientX(e.clientX);
+  }, { passive: false });
+
+  document.addEventListener("pointerup", handleReleasePress, { passive: true });
+  document.addEventListener("pointercancel", handleReleasePress, { passive: true });
+  document.addEventListener("pointerleave", handleReleasePress, { passive: true });
+
+  // Fallback for older iOS Safari if needed
+  document.addEventListener("touchstart", (e) => {
+    if (!isPlayMode()) return;
+    if (!e.touches || !e.touches[0]) return;
+    handlePressAtClientX(e.touches[0].clientX);
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener("touchend", handleReleasePress, { passive: true });
+  document.addEventListener("touchcancel", handleReleasePress, { passive: true });
+
+  // -------------------------
   document.addEventListener("keydown", (e) => {
     if (!isPlayMode()) return;
 
     // Retry on any key
-    if (currentIndex === 1 && carGameOver) {
+    if (currentIndex === 0 && carGameOver) {
       resetCarGame();
       return;
     }
-    if (currentIndex === 0 && inv.gameOver) {
+    if (currentIndex === 1 && inv.gameOver) {
       resetInvadersGame();
       return;
     }
@@ -710,7 +785,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (currentIndex === 1) {
+    if (currentIndex === 0) {
       if (carPaused) {
         resumeCarIfPaused();
         return;
@@ -719,7 +794,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.key === "ArrowRight") playerCar.lane = Math.min(laneCount - 1, playerCar.lane + 1);
     }
 
-    if (currentIndex === 0) {
+    if (currentIndex === 1) {
       if (e.key === "ArrowLeft") inv.shipX = Math.max(20, inv.shipX - 10);
       if (e.key === "ArrowRight") inv.shipX = Math.min(380, inv.shipX + 10);
     }
@@ -736,12 +811,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!isPlayMode()) return;
 
       // Retry on tap
-      if (currentIndex === 1 && carGameOver) resetCarGame();
-      if (currentIndex === 0 && inv.gameOver) resetInvadersGame();
+      if (currentIndex === 0 && carGameOver) resetCarGame();
+      if (currentIndex === 1 && inv.gameOver) resetInvadersGame();
       if (currentIndex === 2 && brick.gameOver) resetBrickGame();
 
       // Also resume car if paused
-      if (currentIndex === 1 && carPaused && !carGameOver) resumeCarIfPaused();
+      if (currentIndex === 0 && carPaused && !carGameOver) resumeCarIfPaused();
     },
     { passive: true }
   );
@@ -751,8 +826,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function resumeActiveGame() {
-    if (currentIndex === 1) resetCarGame();
-    if (currentIndex === 0) resetInvadersGame();
+    if (currentIndex === 0) resetCarGame();
+    if (currentIndex === 1) resetInvadersGame();
     if (currentIndex === 2) resetBrickGame();
   }
 
