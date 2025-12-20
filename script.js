@@ -380,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateCarGame(deltaTime) {
-    if (!isPlayMode() || currentIndex !== 0) return;
+    if (!isPlayMode() || currentIndex !== 1) return;
     if (carPaused || carGameOver) return;
 
     carSpeed += carAcceleration * deltaTime;
@@ -417,29 +417,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Pause on scroll only for active play
-window.addEventListener("scroll", () => {
-  if (!isPlayMode()) return;
-
-  // Only pause the currently active game, and do not override game over screens
-  if (currentIndex === 0) {
-    if (carGameOver || carPaused) return;
+  window.addEventListener("scroll", () => {
+    if (!isPlayMode() || currentIndex !== 1) return;
+    if (carGameOver) return;
     carPaused = true;
-  } else if (currentIndex === 1) {
-    if (inv.gameOver || invPaused) return;
-    invPaused = true;
-  } else if (currentIndex === 2) {
-    if (brick.gameOver || brickPaused) return;
-    brickPaused = true;
-  } else {
-    return;
-  }
+    if (overlay && overlayText) {
+      overlayText.innerHTML = "Game Paused.<br><br>Press anywhere to resume.";
+      overlay.style.visibility = "visible";
+    }
+  });
 
-  if (overlay && overlayText) {
-    overlayText.innerHTML = "Game Paused.<br><br>Press anywhere to resume.";
-    overlay.style.visibility = "visible";
-  }
-});
-function resumeCarIfPaused() {
+  function resumeCarIfPaused() {
     if (!carPaused) return;
     carPaused = false;
     hideOverlay();
@@ -465,8 +453,6 @@ function resumeCarIfPaused() {
     high: 0,
     gameOver: false
   };
-
-  let invPaused = false;
 
   function setInvCanvasSize() {
     if (!invCanvas) return;
@@ -496,7 +482,7 @@ function resumeCarIfPaused() {
   function resetInvadersGame() {
     if (!invCanvas || !invCtx) return;
     setInvCanvasSize();
-    inv.shipX = invCanvas.width / 2;
+    inv.shipX = 190;
     inv.bullets = [];
     inv.speedX = 1.2;
     inv.score = 0;
@@ -527,10 +513,7 @@ function resumeCarIfPaused() {
 
     // Keep drawing the last frame even when game over (avoid black screen)
     invCtx.font = "22px Courier";
-    const shipArt = "/^\\";
-    const shipW = invCtx.measureText(shipArt).width;
-    invCtx.fillText(shipArt, inv.shipX - shipW / 2, inv.shipY);
-
+    invCtx.fillText("/^\\", inv.shipX - 12, inv.shipY);
 
     invCtx.font = "20px Courier";
     inv.aliens.forEach((a) => {
@@ -544,9 +527,8 @@ function resumeCarIfPaused() {
 
   function updateInvaders() {
     if (!invCanvas || !invCtx) return;
-    if (!isPlayMode() || currentIndex !== 1) return;
+    if (!isPlayMode() || currentIndex !== 0) return;
     if (inv.gameOver) return;
-    if (invPaused) return;
 
     const now = Date.now();
     if (now - inv.lastShot > inv.shotMs) {
@@ -614,8 +596,6 @@ function resumeCarIfPaused() {
     bricks: []
   };
 
-  let brickPaused = false;
-
   function setBrickCanvasSize() {
     if (!brickCanvas) return;
     brickCanvas.width = 400;
@@ -628,7 +608,7 @@ function resumeCarIfPaused() {
 
     brick.score = 0;
     brick.gameOver = false;
-    brick.paddleX = brickCanvas.width / 2;
+    brick.paddleX = 156;
     brick.ballX = 200;
     brick.ballY = 360;
     brick.ballDX = 2.6;
@@ -658,9 +638,7 @@ function resumeCarIfPaused() {
     brickCtx.fillText(`High Score: ${Math.floor(brick.high)}`, 10, 40);
 
     brickCtx.font = "20px Courier";
-    const paddleArt = "[=====]";
-    const paddleW = brickCtx.measureText(paddleArt).width;
-    brickCtx.fillText(paddleArt, brick.paddleX - paddleW / 2, 560);
+    brickCtx.fillText("[=====]", brick.paddleX, 560);
     brickCtx.fillText("O", brick.ballX, brick.ballY);
     brick.bricks.forEach((b) => {
       if (b.alive) brickCtx.fillText("[#]", b.x, b.y);
@@ -671,7 +649,6 @@ function resumeCarIfPaused() {
     if (!brickCanvas || !brickCtx) return;
     if (!isPlayMode() || currentIndex !== 2) return;
     if (brick.gameOver) return;
-    if (brickPaused) return;
 
     brick.ballX += brick.ballDX;
     brick.ballY += brick.ballDY;
@@ -681,10 +658,8 @@ function resumeCarIfPaused() {
 
     const paddleY = 548;
     if (brick.ballY >= paddleY && brick.ballY <= paddleY + 14) {
-      
       if (brick.ballX >= brick.paddleX && brick.ballX <= brick.paddleX + 80) {
         brick.ballDY = -Math.abs(brick.ballDY);
-
         const hit = (brick.ballX - (brick.paddleX + 40)) / 40;
         brick.ballDX = hit * 3.4;
       }
@@ -722,11 +697,11 @@ function resumeCarIfPaused() {
     if (!isPlayMode()) return;
 
     // Retry on any key
-    if (currentIndex === 0 && carGameOver) {
+    if (currentIndex === 1 && carGameOver) {
       resetCarGame();
       return;
     }
-    if (currentIndex === 1 && inv.gameOver) {
+    if (currentIndex === 0 && inv.gameOver) {
       resetInvadersGame();
       return;
     }
@@ -735,7 +710,7 @@ function resumeCarIfPaused() {
       return;
     }
 
-    if (currentIndex === 0) {
+    if (currentIndex === 1) {
       if (carPaused) {
         resumeCarIfPaused();
         return;
@@ -744,62 +719,29 @@ function resumeCarIfPaused() {
       if (e.key === "ArrowRight") playerCar.lane = Math.min(laneCount - 1, playerCar.lane + 1);
     }
 
-    if (currentIndex === 1) {
-      if (invPaused) {
-        resumeInvIfPaused();
-        return;
-      }
-      const shipArt = "/^\\";
-      const shipW = invCtx ? invCtx.measureText(shipArt).width : 24;
-      const half = shipW / 2;
-
-      if (e.key === "ArrowLeft") inv.shipX = Math.max(half, inv.shipX - 10);
-      if (e.key === "ArrowRight") inv.shipX = Math.min(invCanvas.width - half, inv.shipX + 10);
+    if (currentIndex === 0) {
+      if (e.key === "ArrowLeft") inv.shipX = Math.max(20, inv.shipX - 10);
+      if (e.key === "ArrowRight") inv.shipX = Math.min(380, inv.shipX + 10);
     }
 
     if (currentIndex === 2) {
-      if (brickPaused) {
-        resumeBrickIfPaused();
-        return;
-      }
-      const paddleArt = "[=====]";
-      const paddleW = brickCtx ? brickCtx.measureText(paddleArt).width : 80;
-      const half = paddleW / 2;
-
-      if (e.key === "ArrowLeft") brick.paddleX = Math.max(half, brick.paddleX - 14);
-      if (e.key === "ArrowRight") brick.paddleX = Math.min(brickCanvas.width - half, brick.paddleX + 14);
+      if (e.key === "ArrowLeft") brick.paddleX = Math.max(10, brick.paddleX - 14);
+      if (e.key === "ArrowRight") brick.paddleX = Math.min(310, brick.paddleX + 14);
     }
   });
 
-  
-document.addEventListener("click", () => {
-  if (!isPlayMode()) return;
-
-  // Retry on click
-  if (currentIndex === 0 && carGameOver) resetCarGame();
-  if (currentIndex === 1 && inv.gameOver) resetInvadersGame();
-  if (currentIndex === 2 && brick.gameOver) resetBrickGame();
-
-  // Resume on click if paused
-  if (currentIndex === 0 && carPaused && !carGameOver) resumeCarIfPaused();
-  if (currentIndex === 1 && invPaused && !inv.gameOver) resumeInvIfPaused();
-  if (currentIndex === 2 && brickPaused && !brick.gameOver) resumeBrickIfPaused();
-});
-
-document.addEventListener(
+  document.addEventListener(
     "touchstart",
     () => {
       if (!isPlayMode()) return;
 
       // Retry on tap
-      if (currentIndex === 0 && carGameOver) resetCarGame();
-      if (currentIndex === 1 && inv.gameOver) resetInvadersGame();
+      if (currentIndex === 1 && carGameOver) resetCarGame();
+      if (currentIndex === 0 && inv.gameOver) resetInvadersGame();
       if (currentIndex === 2 && brick.gameOver) resetBrickGame();
 
-      // Also resume if paused
-      if (currentIndex === 0 && carPaused && !carGameOver) resumeCarIfPaused();
-      if (currentIndex === 1 && invPaused && !inv.gameOver) resumeInvIfPaused();
-      if (currentIndex === 2 && brickPaused && !brick.gameOver) resumeBrickIfPaused();
+      // Also resume car if paused
+      if (currentIndex === 1 && carPaused && !carGameOver) resumeCarIfPaused();
     },
     { passive: true }
   );
@@ -809,8 +751,8 @@ document.addEventListener(
   }
 
   function resumeActiveGame() {
-    if (currentIndex === 0) resetCarGame();
-    if (currentIndex === 1) resetInvadersGame();
+    if (currentIndex === 1) resetCarGame();
+    if (currentIndex === 0) resetInvadersGame();
     if (currentIndex === 2) resetBrickGame();
   }
 
