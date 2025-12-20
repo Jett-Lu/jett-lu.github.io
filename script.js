@@ -417,17 +417,29 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Pause on scroll only for active play
-  window.addEventListener("scroll", () => {
-    if (!isPlayMode() || currentIndex !== 0) return;
-    if (carGameOver) return;
-    carPaused = true;
-    if (overlay && overlayText) {
-      overlayText.innerHTML = "Game Paused.<br><br>Press anywhere to resume.";
-      overlay.style.visibility = "visible";
-    }
-  });
+window.addEventListener("scroll", () => {
+  if (!isPlayMode()) return;
 
-  function resumeCarIfPaused() {
+  // Only pause the currently active game, and do not override game over screens
+  if (currentIndex === 0) {
+    if (carGameOver || carPaused) return;
+    carPaused = true;
+  } else if (currentIndex === 1) {
+    if (inv.gameOver || invPaused) return;
+    invPaused = true;
+  } else if (currentIndex === 2) {
+    if (brick.gameOver || brickPaused) return;
+    brickPaused = true;
+  } else {
+    return;
+  }
+
+  if (overlay && overlayText) {
+    overlayText.innerHTML = "Game Paused.<br><br>Press anywhere to resume.";
+    overlay.style.visibility = "visible";
+  }
+});
+function resumeCarIfPaused() {
     if (!carPaused) return;
     carPaused = false;
     hideOverlay();
@@ -453,6 +465,8 @@ document.addEventListener("DOMContentLoaded", () => {
     high: 0,
     gameOver: false
   };
+
+  let invPaused = false;
 
   function setInvCanvasSize() {
     if (!invCanvas) return;
@@ -532,6 +546,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!invCanvas || !invCtx) return;
     if (!isPlayMode() || currentIndex !== 1) return;
     if (inv.gameOver) return;
+    if (invPaused) return;
 
     const now = Date.now();
     if (now - inv.lastShot > inv.shotMs) {
@@ -599,6 +614,8 @@ document.addEventListener("DOMContentLoaded", () => {
     bricks: []
   };
 
+  let brickPaused = false;
+
   function setBrickCanvasSize() {
     if (!brickCanvas) return;
     brickCanvas.width = 400;
@@ -612,8 +629,8 @@ document.addEventListener("DOMContentLoaded", () => {
     brick.score = 0;
     brick.gameOver = false;
     brick.paddleX = brickCanvas.width / 2;
-    brick.ballX = brickCanvas.width / 2;
-    brick.ballY = brickCanvas.height * 0.6;
+    brick.ballX = 200;
+    brick.ballY = 360;
     brick.ballDX = 2.6;
     brick.ballDY = -2.8;
 
@@ -654,26 +671,21 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!brickCanvas || !brickCtx) return;
     if (!isPlayMode() || currentIndex !== 2) return;
     if (brick.gameOver) return;
+    if (brickPaused) return;
 
     brick.ballX += brick.ballDX;
     brick.ballY += brick.ballDY;
 
-    const ballR = 6;
-
-    if (brick.ballX <= ballR || brick.ballX >= brickCanvas.width - ballR) brick.ballDX *= -1;
+    if (brick.ballX <= 10 || brick.ballX >= 390) brick.ballDX *= -1;
     if (brick.ballY <= 60) brick.ballDY *= -1;
 
     const paddleY = 548;
-    const paddleArt = "[=====]";
-    const paddleW = brickCtx.measureText(paddleArt).width;
-    const left = brick.paddleX - paddleW / 2;
-    const right = brick.paddleX + paddleW / 2;
-
     if (brick.ballY >= paddleY && brick.ballY <= paddleY + 14) {
-      if (brick.ballX >= left && brick.ballX <= right) {
+      
+      if (brick.ballX >= brick.paddleX && brick.ballX <= brick.paddleX + 80) {
         brick.ballDY = -Math.abs(brick.ballDY);
 
-        const hit = (brick.ballX - brick.paddleX) / (paddleW / 2);
+        const hit = (brick.ballX - (brick.paddleX + 40)) / 40;
         brick.ballDX = hit * 3.4;
       }
     }
@@ -733,6 +745,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (currentIndex === 1) {
+      if (invPaused) {
+        resumeInvIfPaused();
+        return;
+      }
       const shipArt = "/^\\";
       const shipW = invCtx ? invCtx.measureText(shipArt).width : 24;
       const half = shipW / 2;
@@ -742,6 +758,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (currentIndex === 2) {
+      if (brickPaused) {
+        resumeBrickIfPaused();
+        return;
+      }
       const paddleArt = "[=====]";
       const paddleW = brickCtx ? brickCtx.measureText(paddleArt).width : 80;
       const half = paddleW / 2;
@@ -751,7 +771,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.addEventListener(
+  
+document.addEventListener("click", () => {
+  if (!isPlayMode()) return;
+
+  // Retry on click
+  if (currentIndex === 0 && carGameOver) resetCarGame();
+  if (currentIndex === 1 && inv.gameOver) resetInvadersGame();
+  if (currentIndex === 2 && brick.gameOver) resetBrickGame();
+
+  // Resume on click if paused
+  if (currentIndex === 0 && carPaused && !carGameOver) resumeCarIfPaused();
+  if (currentIndex === 1 && invPaused && !inv.gameOver) resumeInvIfPaused();
+  if (currentIndex === 2 && brickPaused && !brick.gameOver) resumeBrickIfPaused();
+});
+
+document.addEventListener(
     "touchstart",
     () => {
       if (!isPlayMode()) return;
@@ -761,8 +796,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (currentIndex === 1 && inv.gameOver) resetInvadersGame();
       if (currentIndex === 2 && brick.gameOver) resetBrickGame();
 
-      // Also resume car if paused
+      // Also resume if paused
       if (currentIndex === 0 && carPaused && !carGameOver) resumeCarIfPaused();
+      if (currentIndex === 1 && invPaused && !inv.gameOver) resumeInvIfPaused();
+      if (currentIndex === 2 && brickPaused && !brick.gameOver) resumeBrickIfPaused();
     },
     { passive: true }
   );
