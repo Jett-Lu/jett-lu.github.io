@@ -22,21 +22,39 @@
   <!-- HIDDEN EASTER EGG TITLE -->
   <div id="fixed-name-title">Jett Lu</div>
 
-  <!-- GAME SECTION -->
-  <div id="game-container">
-    <canvas id="gameCanvas"></canvas>
-    <div id="game-over">
-      <div id="game-over-box">
-        <p id="game-over-text">Game Over</p>
+<!-- GAME SECTION -->
+<div id="game-container">
+
+  <div id="game-carousel-viewport">
+    <div id="game-carousel">
+      <div class="game-panel active" data-index="0">
+        <canvas id="gameCanvas"></canvas>
+      </div>
+      <div class="game-panel" data-index="1">
+        <canvas id="invadersCanvas"></canvas>
+      </div>
+
+      <div class="game-panel" data-index="2">
+        <canvas id="brickCanvas"></canvas>
       </div>
     </div>
   </div>
+
+  <button id="game-play" aria-label="Play selected game">Play</button>
+
+  <div id="game-over">
+    <div id="game-over-box">
+      <p id="game-over-text">Game Over</p>
+    </div>
+  </div>
+
+</div>
 
   <!-- ABOUT SECTION -->
   <section id="about" class="content-box fade-in-section">
     <h2>About Me</h2>
     <p><br>
-      Software engineering student with production experience in regulated environments. Contributed to Laboratory Information Management Systems (LIMS) at the Ontario Ministry of Transportation through system testing, CI/CD automation, infrastructure optimization, and AODA/WCAG compliance. Collaborated across QA, IT, and engineering teams to enhance data integrity, traceability, operational efficiency, and documentation.
+      Software engineering student with production experience in regulated environments. Contributed to Laboratory Information Management Systems (LIMS) at the Ontario Ministry of Transportation through system testing, CI/CD automation, infrastructure optimization, and AODA/WCAG compliance. Collaborated across QA, IT, and engineering teams to enhance data integrity, traceability and operational efficiency.
     </p><br>
 
     <p><br>
