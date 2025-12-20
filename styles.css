@@ -94,6 +94,7 @@ body {
 
 /* Panels: left and right are the same size */
 .game-panel {
+  box-sizing: content-box;
   width: 320px;
   height: 480px;
   background: black;
@@ -114,6 +115,7 @@ body {
 
 /* Center panel is larger */
 .game-panel.active {
+  box-sizing: content-box;
   width: 400px;
   height: 600px;
   opacity: 1;
@@ -134,7 +136,7 @@ body {
 }
 
 #game-container.expanded .game-panel.active {
-  transform: scale(1.25);
+  transform: scale(1);
   cursor: default;
 }
 

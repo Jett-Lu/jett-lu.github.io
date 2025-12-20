@@ -256,7 +256,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  window.addEventListener("resize", () => requestAnimationFrame(() => centerActive(false)));
+  window.addEventListener("resize", () => {
+    requestAnimationFrame(() => {
+      centerActive(false);
+      positionPlayButton();
+    });
+  });
 
   // Start centered on Game 2
   setActive(currentIndex);
@@ -435,7 +440,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const invCtx = invCanvas ? invCanvas.getContext("2d") : null;
 
   const inv = {
-    shipX: 200,
+    shipX: 190,
     shipY: 540,
     bullets: [],
     aliens: [],
@@ -477,7 +482,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function resetInvadersGame() {
     if (!invCanvas || !invCtx) return;
     setInvCanvasSize();
-    inv.shipX = 200;
+    inv.shipX = invCanvas.width / 2;
     inv.bullets = [];
     inv.speedX = 1.2;
     inv.score = 0;
@@ -508,7 +513,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Keep drawing the last frame even when game over (avoid black screen)
     invCtx.font = "22px Courier";
-    invCtx.fillText("/^\\", inv.shipX - 12, inv.shipY);
+    const shipArt = "/^\\";
+    const shipW = invCtx.measureText(shipArt).width;
+    invCtx.fillText(shipArt, inv.shipX - shipW / 2, inv.shipY);
+
 
     invCtx.font = "20px Courier";
     inv.aliens.forEach((a) => {
@@ -583,7 +591,7 @@ document.addEventListener("DOMContentLoaded", () => {
     score: 0,
     high: 0,
     gameOver: false,
-    paddleX: 170,
+    paddleX: 156,
     ballX: 200,
     ballY: 360,
     ballDX: 2.6,
@@ -603,9 +611,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     brick.score = 0;
     brick.gameOver = false;
-    brick.paddleX = 170;
-    brick.ballX = 200;
-    brick.ballY = 360;
+    brick.paddleX = brickCanvas.width / 2;
+    brick.ballX = brickCanvas.width / 2;
+    brick.ballY = brickCanvas.height * 0.6;
     brick.ballDX = 2.6;
     brick.ballDY = -2.8;
 
@@ -633,7 +641,9 @@ document.addEventListener("DOMContentLoaded", () => {
     brickCtx.fillText(`High Score: ${Math.floor(brick.high)}`, 10, 40);
 
     brickCtx.font = "20px Courier";
-    brickCtx.fillText("[=====]", brick.paddleX, 560);
+    const paddleArt = "[=====]";
+    const paddleW = brickCtx.measureText(paddleArt).width;
+    brickCtx.fillText(paddleArt, brick.paddleX - paddleW / 2, 560);
     brickCtx.fillText("O", brick.ballX, brick.ballY);
     brick.bricks.forEach((b) => {
       if (b.alive) brickCtx.fillText("[#]", b.x, b.y);
@@ -648,14 +658,22 @@ document.addEventListener("DOMContentLoaded", () => {
     brick.ballX += brick.ballDX;
     brick.ballY += brick.ballDY;
 
-    if (brick.ballX <= 10 || brick.ballX >= 390) brick.ballDX *= -1;
+    const ballR = 6;
+
+    if (brick.ballX <= ballR || brick.ballX >= brickCanvas.width - ballR) brick.ballDX *= -1;
     if (brick.ballY <= 60) brick.ballDY *= -1;
 
     const paddleY = 548;
+    const paddleArt = "[=====]";
+    const paddleW = brickCtx.measureText(paddleArt).width;
+    const left = brick.paddleX - paddleW / 2;
+    const right = brick.paddleX + paddleW / 2;
+
     if (brick.ballY >= paddleY && brick.ballY <= paddleY + 14) {
-      if (brick.ballX >= brick.paddleX && brick.ballX <= brick.paddleX + 80) {
+      if (brick.ballX >= left && brick.ballX <= right) {
         brick.ballDY = -Math.abs(brick.ballDY);
-        const hit = (brick.ballX - (brick.paddleX + 40)) / 40;
+
+        const hit = (brick.ballX - brick.paddleX) / (paddleW / 2);
         brick.ballDX = hit * 3.4;
       }
     }
@@ -715,13 +733,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (currentIndex === 1) {
-      if (e.key === "ArrowLeft") inv.shipX = Math.max(20, inv.shipX - 10);
-      if (e.key === "ArrowRight") inv.shipX = Math.min(380, inv.shipX + 10);
+      const shipArt = "/^\\";
+      const shipW = invCtx ? invCtx.measureText(shipArt).width : 24;
+      const half = shipW / 2;
+
+      if (e.key === "ArrowLeft") inv.shipX = Math.max(half, inv.shipX - 10);
+      if (e.key === "ArrowRight") inv.shipX = Math.min(invCanvas.width - half, inv.shipX + 10);
     }
 
     if (currentIndex === 2) {
-      if (e.key === "ArrowLeft") brick.paddleX = Math.max(10, brick.paddleX - 14);
-      if (e.key === "ArrowRight") brick.paddleX = Math.min(310, brick.paddleX + 14);
+      const paddleArt = "[=====]";
+      const paddleW = brickCtx ? brickCtx.measureText(paddleArt).width : 80;
+      const half = paddleW / 2;
+
+      if (e.key === "ArrowLeft") brick.paddleX = Math.max(half, brick.paddleX - 14);
+      if (e.key === "ArrowRight") brick.paddleX = Math.min(brickCanvas.width - half, brick.paddleX + 14);
     }
   });
 
