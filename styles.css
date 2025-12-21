@@ -378,3 +378,9 @@ body {
 }
 
 canvas { touch-action: none; }
+
+@media (min-width: 769px) {
+  #game-container:not(.expanded) .game-panel.active {
+    transform: scale(1);
+  }
+}

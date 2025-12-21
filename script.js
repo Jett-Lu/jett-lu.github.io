@@ -256,7 +256,7 @@ let currentIndex = panels.length >= 2 ? 1 : 0;
     carousel.addEventListener("pointermove", (e) => {
       if (!isDragging) return;
       const dx = e.clientX - dragStartX;
-      dragOffset = dx * 0.45;
+      dragOffset = dx * (isTouch ? 0.85 : 0.45);
       setTranslateX(getTranslateX() + dragOffset, false);
       dragStartX = e.clientX;
     });
