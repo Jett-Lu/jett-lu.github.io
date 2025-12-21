@@ -111,6 +111,21 @@ document.addEventListener("DOMContentLoaded", () => {
     playBtn.textContent = isPlayMode() ? "Back" : "Play";
   }
 
+  window.addEventListener("popstate", () => {
+  if (!isPlayMode()) return;
+
+  gameContainer.classList.remove("expanded");
+  hideOverlay();
+  pauseAllGames();
+  drawAllOnce();
+  setPlayButtonText();
+
+  requestAnimationFrame(() => {
+    centerActive(false);
+    positionPlayButton();
+  });
+});
+
   function positionPlayButton() {
     const btn = document.getElementById("game-play");
     const container = document.getElementById("game-container");
@@ -136,13 +151,23 @@ document.addEventListener("DOMContentLoaded", () => {
     return activePanel.querySelector("canvas");
   }
 
-  function getCanvasXFromClient(clientX) {
+  function getCanvasPosFromClient(clientX, clientY) {
     const canvas = getActiveCanvas();
     if (!canvas) return null;
+
     const rect = canvas.getBoundingClientRect();
-    if (!rect.width) return null;
-    // Map from CSS pixels back to canvas pixels
-    return (clientX - rect.left) * (canvas.width / rect.width);
+    if (!rect.width || !rect.height) return null;
+
+    // must be inside the canvas rect
+    if (
+      clientX < rect.left || clientX > rect.right ||
+      clientY < rect.top || clientY > rect.bottom
+    ) return null;
+
+    const x = (clientX - rect.left) * (canvas.width / rect.width);
+    const y = (clientY - rect.top) * (canvas.height / rect.height);
+
+    return { x, y, canvas };
   }
 
   function clearHolds() {
@@ -263,6 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (playBtn && gameContainer) {
     playBtn.addEventListener("click", () => {
       if (!isPlayMode()) {
+        try { history.pushState({ playMode: true }, ""); } catch (e) {}
         gameContainer.classList.add("expanded");
         hideOverlay();
         resumeActiveGame();
@@ -544,14 +570,16 @@ document.addEventListener("DOMContentLoaded", () => {
     inv.bullets.forEach((b) => invCtx.fillText("|", b.x, b.y));
   }
 
-  function updateInvaders() {
+  function updateInvaders(dt) {
     if (!invCanvas || !invCtx) return;
     if (!isPlayMode() || currentIndex !== 0) return;
     if (inv.gameOver) return;
 
     // Hold-to-move (touch/mouse). Uses same speed as keyboard feel.
-    if (holdLeft) inv.shipX -= 8;
-    if (holdRight) inv.shipX += 8;
+    const shipSpeed = 480; // px per second
+    if (holdLeft) inv.shipX -= shipSpeed * dt;
+    if (holdRight) inv.shipX += shipSpeed * dt;
+    inv.shipX = clamp(inv.shipX, 20, 380);
 
     const now = Date.now();
     if (now - inv.lastShot > inv.shotMs) {
@@ -559,13 +587,15 @@ document.addEventListener("DOMContentLoaded", () => {
       inv.bullets.push({ x: inv.shipX, y: inv.shipY - 18, dead: false });
     }
 
-    inv.bullets.forEach((b) => (b.y -= 10));
+    const bulletSpeed = 720; // px per second
+    inv.bullets.forEach((b) => (b.y -= bulletSpeed * dt));
     inv.bullets = inv.bullets.filter((b) => b.y > -20 && !b.dead);
 
     let hitEdge = false;
     inv.aliens.forEach((a) => {
       if (!a.alive) return;
-      a.x += inv.speedX * inv.dir;
+      const alienSpeed = inv.speedX * 120; // convert to px/sec feel
+      a.x += alienSpeed * dt * inv.dir;
       if (a.x > 380 || a.x < 20) hitEdge = true;
     });
 
@@ -668,17 +698,22 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function updateBrick() {
+  function updateBrick(dt) {
     if (!brickCanvas || !brickCtx) return;
     if (!isPlayMode() || currentIndex !== 2) return;
     if (brick.gameOver) return;
 
     // Hold-to-move (touch/mouse)
-    if (holdLeft) brick.paddleX -= 9;
-    if (holdRight) brick.paddleX += 9;
+    const paddleSpeed = 540; // px per second
+    if (holdLeft) brick.paddleX -= paddleSpeed * dt;
+    if (holdRight) brick.paddleX += paddleSpeed * dt;
 
-    brick.ballX += brick.ballDX;
-    brick.ballY += brick.ballDY;
+    // clamp paddle so it cannot go out of bounds
+    brick.paddleX = clamp(brick.paddleX, 10, 310);
+
+    const ballSpeedScale = dt * 60; // keeps your original "per frame" feel at 60fps
+    brick.ballX += brick.ballDX * ballSpeedScale;
+    brick.ballY += brick.ballDY * ballSpeedScale;
 
     if (brick.ballX <= 10 || brick.ballX >= 390) brick.ballDX *= -1;
     if (brick.ballY <= 60) brick.ballDY *= -1;
@@ -722,16 +757,21 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------
   // Touch and mouse controls (tap or hold on left/right half of the active canvas)
   // -------------------------
-  function handlePressAtClientX(clientX) {
+  function handlePressAtClient(clientX, clientY) {
     if (!isPlayMode()) return;
-    const x = getCanvasXFromClient(clientX);
-    if (x === null) return;
+    const pos = getCanvasPosFromClient(clientX, clientY);
+    if (!pos) return;
+    const x = pos.x;
 
     // Game 1: Car dodger (tap to change lanes)
     if (currentIndex === 1 && !carGameOver) {
       if (carPaused) resumeCarIfPaused();
-      if (x < 200) playerCar.lane = Math.max(0, playerCar.lane - 1);
-      else playerCar.lane = Math.min(2, playerCar.lane + 1);
+
+      // choose lane by thirds
+      if (x < (400 / 3)) playerCar.lane = 0;
+      else if (x < (2 * 400 / 3)) playerCar.lane = 1;
+      else playerCar.lane = 2;
+
       return;
     }
 
@@ -747,7 +787,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Pointer events cover mouse + touch on modern browsers
   document.addEventListener("pointerdown", (e) => {
     if (!isPlayMode()) return;
-    handlePressAtClientX(e.clientX);
+
+    const active = getActiveCanvas();
+    if (!active || e.target !== active) return;
+
+    handlePressAtClient(e.clientX, e.clientY);
   }, { passive: false });
 
   document.addEventListener("pointerup", handleReleasePress, { passive: true });
@@ -758,7 +802,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("touchstart", (e) => {
     if (!isPlayMode()) return;
     if (!e.touches || !e.touches[0]) return;
-    handlePressAtClientX(e.touches[0].clientX);
+    handlePressAtClient(e.touches[0].clientX, e.touches[0].clientY);
     e.preventDefault();
   }, { passive: false });
 
@@ -803,21 +847,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.addEventListener(
-    "touchstart",
-    () => {
-      if (!isPlayMode()) return;
+  document.addEventListener("pointermove", (e) => {
+  if (!isPlayMode()) return;
+  if (!holdLeft && !holdRight) return;
 
-      // Retry on tap
-      if (currentIndex === 1 && carGameOver) resetCarGame();
-      if (currentIndex === 0 && inv.gameOver) resetInvadersGame();
-      if (currentIndex === 2 && brick.gameOver) resetBrickGame();
+  const pos = getCanvasPosFromClient(e.clientX, e.clientY);
+  if (!pos) clearHolds();
+  }, 
+  { passive: true });
 
-      // Also resume car if paused
-      if (currentIndex === 1 && carPaused && !carGameOver) resumeCarIfPaused();
-    },
-    { passive: true }
-  );
+  document.addEventListener("touchstart", (e) => {
+    if (!isPlayMode()) return;
+
+    const active = getActiveCanvas();
+    if (!active) return;
+
+    const t = e.touches && e.touches[0];
+    if (!t) return;
+
+    const pos = getCanvasPosFromClient(t.clientX, t.clientY);
+    if (!pos) return;
+
+    if (currentIndex === 1 && carGameOver) resetCarGame();
+    if (currentIndex === 0 && inv.gameOver) resetInvadersGame();
+    if (currentIndex === 2 && brick.gameOver) resetBrickGame();
+
+    if (currentIndex === 1 && carPaused && !carGameOver) resumeCarIfPaused();
+  }, { passive: true });
+
 
   function pauseAllGames() {
     // Logic gates in update loops effectively pause games.
@@ -844,18 +901,17 @@ document.addEventListener("DOMContentLoaded", () => {
     lastCarFrame = ts;
 
     updateCarGame(dt);
-    updateInvaders();
-    updateBrick();
+    updateInvaders(dt);
+    updateBrick(dt);
 
     // Draw always so non-active panels are not black.
     drawCarGame();
     drawInvaders();
     drawBrick();
 
-    requestAnimationFrame(loop);
-  
+  requestAnimationFrame(loop);
   updatePlayButton();
-}
+  }
 
   // Init
   setPlayButtonText();
