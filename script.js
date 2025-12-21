@@ -256,7 +256,7 @@ let currentIndex = panels.length >= 2 ? 1 : 0;
     carousel.addEventListener("pointermove", (e) => {
       if (!isDragging) return;
       const dx = e.clientX - dragStartX;
-      dragOffset = dx * (isTouch ? 0.85 : 0.45);
+      dragOffset = dx * 0.45;
       setTranslateX(getTranslateX() + dragOffset, false);
       dragStartX = e.clientX;
     });
@@ -442,9 +442,24 @@ const laneCount = 3;
   }
 
   window.addEventListener("scroll", () => {
-    if (!isPlayMode() || currentIndex !== 1) return;
-    if (carGameOver) return;
-    carPaused = true;
+    if (!isPlayMode()) return;
+
+    if (currentIndex === 1) {
+      if (carGameOver) return;
+      carPaused = true;
+    } else if (currentIndex === 0) {
+      if (inv.gameOver) return;
+      pauseInvaders();
+      return;
+    } else if (currentIndex === 2) {
+      if (brick.gameOver) return;
+    if (brickPaused) return;
+      pauseBrick();
+      return;
+    } else {
+      return;
+    }
+
     if (overlay && overlayText) {
       overlayText.innerHTML = "Game Paused.<br><br>Press anywhere to resume.";
       overlay.style.visibility = "visible";
@@ -468,14 +483,32 @@ const inv = {
     bullets: [],
     aliens: [],
     dir: 1,
-    speedX: 1.2,
-    stepDown: 22,
+    speedX: 0.9,
+    stepDown: 18,
     lastShot: 0,
     shotMs: 220,
     score: 0,
     high: 0,
     gameOver: false
   };
+
+  let invPaused = false;
+
+  function pauseInvaders() {
+    if (inv.gameOver) return;
+    invPaused = true;
+    if (overlay && overlayText) {
+      overlayText.innerHTML = "Game Paused.<br><br>Press anywhere to resume.";
+      overlay.style.visibility = "visible";
+    }
+  }
+
+  function resumeInvadersIfPaused() {
+    if (!invPaused) return;
+    invPaused = false;
+    hideOverlay();
+  }
+
 
   function setInvCanvasSize() {
     if (!invCanvas) return;
@@ -516,7 +549,7 @@ const inv = {
 
   function nextInvaderWave() {
     inv.bullets = [];
-    inv.speedX += 0.6;
+    inv.speedX += 0.35;
     spawnInvaderWave();
   }
 
@@ -550,8 +583,9 @@ const inv = {
     if (!invCanvas || !invCtx) return;
     if (!isPlayMode() || currentIndex !== 0) return;
     if (inv.gameOver) return;
+    if (invPaused) return;
 
-    const shipSpeed = 480; // px per second
+    const shipSpeed = 380; // px per second
     if (holdLeft) inv.shipX -= shipSpeed * dt;
     if (holdRight) inv.shipX += shipSpeed * dt;
     inv.shipX = clamp(inv.shipX, 20, 380);
@@ -562,14 +596,14 @@ const inv = {
       inv.bullets.push({ x: inv.shipX, y: inv.shipY - 18, dead: false });
     }
 
-    const bulletSpeed = 720; // px per second
+    const bulletSpeed = 650; // px per second
     inv.bullets.forEach((b) => (b.y -= bulletSpeed * dt));
     inv.bullets = inv.bullets.filter((b) => b.y > -20 && !b.dead);
 
     let hitEdge = false;
     inv.aliens.forEach((a) => {
       if (!a.alive) return;
-      const alienSpeed = inv.speedX * 120; // convert to px/sec feel
+      const alienSpeed = inv.speedX * 90; // convert to px/sec feel
       a.x += alienSpeed * dt * inv.dir;
       if (a.x > 380 || a.x < 20) hitEdge = true;
     });
@@ -578,6 +612,7 @@ const inv = {
       inv.dir *= -1;
       inv.aliens.forEach((a) => {
         if (!a.alive) return;
+        a.x = clamp(a.x, 20, 380);
         a.y += inv.stepDown;
         if (a.y > inv.shipY - 40) inv.gameOver = true;
       });
@@ -626,6 +661,24 @@ const brick = {
     ballDY: -2.8,
     bricks: []
   };
+
+  let brickPaused = false;
+
+  function pauseBrick() {
+    if (brick.gameOver) return;
+    brickPaused = true;
+    if (overlay && overlayText) {
+      overlayText.innerHTML = "Game Paused.<br><br>Press anywhere to resume.";
+      overlay.style.visibility = "visible";
+    }
+  }
+
+  function resumeBrickIfPaused() {
+    if (!brickPaused) return;
+    brickPaused = false;
+    hideOverlay();
+  }
+
 
   function setBrickCanvasSize() {
     if (!brickCanvas) return;
@@ -680,6 +733,7 @@ const brick = {
     if (!brickCanvas || !brickCtx) return;
     if (!isPlayMode() || currentIndex !== 2) return;
     if (brick.gameOver) return;
+    if (brickPaused) return;
 
     const paddleSpeed = 540; // px per second
     if (holdLeft) brick.paddleX -= paddleSpeed * dt;
@@ -734,6 +788,16 @@ const brick = {
     if (!pos) return;
     const x = pos.x;
 
+
+    if (currentIndex === 0 && invPaused && !inv.gameOver) {
+      resumeInvadersIfPaused();
+      return;
+    }
+    if (currentIndex === 2 && brickPaused && !brick.gameOver) {
+      resumeBrickIfPaused();
+      return;
+    }
+
     if (currentIndex === 1 && !carGameOver) {
       if (carPaused) resumeCarIfPaused();
 const mid = carCanvas ? (carCanvas.width / 2) : 200;
@@ -780,6 +844,16 @@ const mid = carCanvas ? (carCanvas.width / 2) : 200;
 
   document.addEventListener("keydown", (e) => {
     if (!isPlayMode()) return;
+
+
+    if (currentIndex === 0 && invPaused && !inv.gameOver) {
+      resumeInvadersIfPaused();
+      return;
+    }
+    if (currentIndex === 2 && brickPaused && !brick.gameOver) {
+      resumeBrickIfPaused();
+      return;
+    }
 
     if (currentIndex === 1 && carGameOver) {
       resetCarGame();
