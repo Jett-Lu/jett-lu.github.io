@@ -255,8 +255,13 @@ let currentIndex = panels.length >= 2 ? 1 : 0;
 
     carousel.addEventListener("pointermove", (e) => {
       if (!isDragging) return;
+
       const dx = e.clientX - dragStartX;
-      dragOffset = dx * 0.45;
+
+      const isPhone = window.matchMedia("(max-width: 768px)").matches;
+      const dragMultiplier = isPhone ? 1.1 : 0.45;
+
+      const dragOffset = dx * dragMultiplier;
       setTranslateX(getTranslateX() + dragOffset, false);
       dragStartX = e.clientX;
     });
