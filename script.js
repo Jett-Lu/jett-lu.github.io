@@ -1,4 +1,3 @@
-
 document.addEventListener("DOMContentLoaded", () => {
 
   function updatePlayButton() {
@@ -10,18 +9,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.documentElement.classList.add("js");
 
-  // -------------------------
-  // Nav: hamburger
-  // -------------------------
   const hamburger = document.getElementById("hamburger");
   const navLinks = document.getElementById("nav-links");
   if (hamburger && navLinks) {
     hamburger.addEventListener("click", () => navLinks.classList.toggle("show"));
   }
 
-  // -------------------------
-  // Fade-in
-  // -------------------------
   const fadeEls = document.querySelectorAll(".fade-in-section");
   const observer = new IntersectionObserver(
     (entries, obs) => {
@@ -35,9 +28,6 @@ document.addEventListener("DOMContentLoaded", () => {
   );
   fadeEls.forEach((el) => observer.observe(el));
 
-  // -------------------------
-  // GitHub projects
-  // -------------------------
   async function loadProjects() {
     const container = document.getElementById("project-container");
     if (!container) return;
@@ -83,9 +73,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (refreshBtn) refreshBtn.addEventListener("click", loadProjects);
   loadProjects();
 
-  // -------------------------
-  // Game UI elements
-  // -------------------------
   const gameContainer = document.getElementById("game-container");
   const viewport = document.getElementById("game-carousel-viewport");
   const carousel = document.getElementById("game-carousel");
@@ -96,11 +83,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const overlayText = document.getElementById("game-over-text");
   const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
-  // Hold-to-move flags (for touch + mouse)
   let holdLeft = false;
   let holdRight = false;
 
-  let currentIndex = panels.length >= 2 ? 1 : 0;
+
+  let lastTouchStartMs = 0;
+let currentIndex = panels.length >= 2 ? 1 : 0;
 
   function isPlayMode() {
     return gameContainer && gameContainer.classList.contains("expanded");
@@ -158,7 +146,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const rect = canvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
 
-    // must be inside the canvas rect
     if (
       clientX < rect.left || clientX > rect.right ||
       clientY < rect.top || clientY > rect.bottom
@@ -226,7 +213,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setTranslateX(getTranslateX() + delta, animate);
   }
 
-  // Drag only selection
   let isDragging = false;
   let dragStartX = 0;
   let dragOffset = 0;
@@ -308,7 +294,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener("resize", () => requestAnimationFrame(() => centerActive(false)));
 
-  // Start centered on Game 2
   setActive(currentIndex);
   requestAnimationFrame(() => {
     centerActive(false);
@@ -316,13 +301,12 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(() => centerActive(false));
   });
 
-  // -------------------------
-  // Game 1: Car Dodger (restored)
-  // -------------------------
   const carCanvas = document.getElementById("gameCanvas");
   const carCtx = carCanvas ? carCanvas.getContext("2d") : null;
 
-  const laneCount = 3;
+
+  if (carCanvas) carCanvas.style.touchAction = "none";
+const laneCount = 3;
   const playerCarArt = "[=]";
   const obstacleArt = "[#]";
 
@@ -374,7 +358,6 @@ document.addEventListener("DOMContentLoaded", () => {
     carCtx.strokeStyle = "white";
     carCtx.lineWidth = 2;
 
-    // Road edges
     carCtx.beginPath();
     carCtx.moveTo((carCanvas.width - topW) / 2, 0);
     carCtx.lineTo((carCanvas.width - bottomW) / 2, carCanvas.height);
@@ -382,7 +365,6 @@ document.addEventListener("DOMContentLoaded", () => {
     carCtx.lineTo((carCanvas.width + bottomW) / 2, carCanvas.height);
     carCtx.stroke();
 
-    // Lane lines
     carCtx.setLineDash([15, 15]);
     for (let i = 1; i < laneCount; i++) {
       const x1 = (carCanvas.width - topW) / 2 + (topW / laneCount) * i;
@@ -394,7 +376,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     carCtx.setLineDash([]);
 
-    // Player + obstacles
     carCtx.fillStyle = "white";
     carCtx.font = "20px Courier";
 
@@ -407,7 +388,6 @@ document.addEventListener("DOMContentLoaded", () => {
       carCtx.fillText(obstacleArt, oX, o.y);
     });
 
-    // Score
     carCtx.fillStyle = "white";
     carCtx.font = "16px Arial";
     carCtx.fillText(`Score: ${Math.floor(carScore)}`, 10, 20);
@@ -461,7 +441,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Pause on scroll only for active play
   window.addEventListener("scroll", () => {
     if (!isPlayMode() || currentIndex !== 1) return;
     if (carGameOver) return;
@@ -478,13 +457,12 @@ document.addEventListener("DOMContentLoaded", () => {
     hideOverlay();
   }
 
-  // -------------------------
-  // Game 2: Space Invaders (fix black screen + keep score on next wave)
-  // -------------------------
   const invCanvas = document.getElementById("invadersCanvas");
   const invCtx = invCanvas ? invCanvas.getContext("2d") : null;
 
-  const inv = {
+
+  if (invCanvas) invCanvas.style.touchAction = "none";
+const inv = {
     shipX: 190,
     shipY: 540,
     bullets: [],
@@ -537,7 +515,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function nextInvaderWave() {
-    // Keep score, increase speed, clear bullets
     inv.bullets = [];
     inv.speedX += 0.6;
     spawnInvaderWave();
@@ -556,7 +533,6 @@ document.addEventListener("DOMContentLoaded", () => {
     invCtx.fillText(`Score: ${Math.floor(inv.score)}`, 10, 20);
     invCtx.fillText(`High Score: ${Math.floor(inv.high)}`, 10, 40);
 
-    // Keep drawing the last frame even when game over (avoid black screen)
     invCtx.font = "22px Courier";
     invCtx.fillText("/^\\", inv.shipX - 12, inv.shipY);
 
@@ -575,7 +551,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isPlayMode() || currentIndex !== 0) return;
     if (inv.gameOver) return;
 
-    // Hold-to-move (touch/mouse). Uses same speed as keyboard feel.
     const shipSpeed = 480; // px per second
     if (holdLeft) inv.shipX -= shipSpeed * dt;
     if (holdRight) inv.shipX += shipSpeed * dt;
@@ -631,13 +606,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // -------------------------
-  // Game 3: Brick Breaker (make sure it exists)
-  // -------------------------
   const brickCanvas = document.getElementById("brickCanvas");
   const brickCtx = brickCanvas ? brickCanvas.getContext("2d") : null;
 
-  const brick = {
+  if (carCanvas) carCanvas.style.touchAction = "none";
+  if (invCanvas) invCanvas.style.touchAction = "none";
+  if (brickCanvas) brickCanvas.style.touchAction = "none";
+
+
+  if (brickCanvas) brickCanvas.style.touchAction = "none";
+const brick = {
     score: 0,
     high: 0,
     gameOver: false,
@@ -703,12 +681,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isPlayMode() || currentIndex !== 2) return;
     if (brick.gameOver) return;
 
-    // Hold-to-move (touch/mouse)
     const paddleSpeed = 540; // px per second
     if (holdLeft) brick.paddleX -= paddleSpeed * dt;
     if (holdRight) brick.paddleX += paddleSpeed * dt;
 
-    // clamp paddle so it cannot go out of bounds
     brick.paddleX = clamp(brick.paddleX, 10, 310);
 
     const ballSpeedScale = dt * 60; // keeps your original "per frame" feel at 60fps
@@ -752,30 +728,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // -------------------------
-  // Controls + retry
-  // -------------------------
-  // Touch and mouse controls (tap or hold on left/right half of the active canvas)
-  // -------------------------
   function handlePressAtClient(clientX, clientY) {
     if (!isPlayMode()) return;
     const pos = getCanvasPosFromClient(clientX, clientY);
     if (!pos) return;
     const x = pos.x;
 
-    // Game 1: Car dodger (tap to change lanes)
     if (currentIndex === 1 && !carGameOver) {
       if (carPaused) resumeCarIfPaused();
+const mid = carCanvas ? (carCanvas.width / 2) : 200;
 
-      // choose lane by thirds
-      if (x < (400 / 3)) playerCar.lane = 0;
-      else if (x < (2 * 400 / 3)) playerCar.lane = 1;
-      else playerCar.lane = 2;
-
+      if (x < mid) {
+        playerCar.lane = Math.max(0, playerCar.lane - 1);
+      } else {
+        playerCar.lane = Math.min(laneCount - 1, playerCar.lane + 1);
+      }
       return;
     }
 
-    // Game 2/3: hold to move
     holdLeft = x < 200;
     holdRight = x >= 200;
   }
@@ -784,36 +754,33 @@ document.addEventListener("DOMContentLoaded", () => {
     clearHolds();
   }
 
-  // Pointer events cover mouse + touch on modern browsers
   document.addEventListener("pointerdown", (e) => {
     if (!isPlayMode()) return;
 
-    const active = getActiveCanvas();
-    if (!active || e.target !== active) return;
+    if (e.pointerType !== "touch" && Date.now() - lastTouchStartMs < 500) return;
+    if (e.pointerType === "touch") lastTouchStartMs = Date.now();
+
+    const pos = getCanvasPosFromClient(e.clientX, e.clientY);
+    if (!pos) return;
+
+    if (currentIndex === 1 && carGameOver) { resetCarGame(); e.preventDefault(); return; }
+    if (currentIndex === 0 && inv.gameOver) { resetInvadersGame(); e.preventDefault(); return; }
+    if (currentIndex === 2 && brick.gameOver) { resetBrickGame(); e.preventDefault(); return; }
+    if (currentIndex === 1 && carPaused && !carGameOver) resumeCarIfPaused();
+
+    try { pos.canvas.setPointerCapture(e.pointerId); } catch (err) {}
 
     handlePressAtClient(e.clientX, e.clientY);
+    e.preventDefault();
   }, { passive: false });
 
   document.addEventListener("pointerup", handleReleasePress, { passive: true });
   document.addEventListener("pointercancel", handleReleasePress, { passive: true });
   document.addEventListener("pointerleave", handleReleasePress, { passive: true });
 
-  // Fallback for older iOS Safari if needed
-  document.addEventListener("touchstart", (e) => {
-    if (!isPlayMode()) return;
-    if (!e.touches || !e.touches[0]) return;
-    handlePressAtClient(e.touches[0].clientX, e.touches[0].clientY);
-    e.preventDefault();
-  }, { passive: false });
-
-  document.addEventListener("touchend", handleReleasePress, { passive: true });
-  document.addEventListener("touchcancel", handleReleasePress, { passive: true });
-
-  // -------------------------
   document.addEventListener("keydown", (e) => {
     if (!isPlayMode()) return;
 
-    // Retry on any key
     if (currentIndex === 1 && carGameOver) {
       resetCarGame();
       return;
@@ -853,31 +820,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const pos = getCanvasPosFromClient(e.clientX, e.clientY);
   if (!pos) clearHolds();
-  }, 
+  },
   { passive: true });
-
-  document.addEventListener("touchstart", (e) => {
-    if (!isPlayMode()) return;
-
-    const active = getActiveCanvas();
-    if (!active) return;
-
-    const t = e.touches && e.touches[0];
-    if (!t) return;
-
-    const pos = getCanvasPosFromClient(t.clientX, t.clientY);
-    if (!pos) return;
-
-    if (currentIndex === 1 && carGameOver) resetCarGame();
-    if (currentIndex === 0 && inv.gameOver) resetInvadersGame();
-    if (currentIndex === 2 && brick.gameOver) resetBrickGame();
-
-    if (currentIndex === 1 && carPaused && !carGameOver) resumeCarIfPaused();
-  }, { passive: true });
 
 
   function pauseAllGames() {
-    // Logic gates in update loops effectively pause games.
   }
 
   function resumeActiveGame() {
@@ -892,9 +839,6 @@ document.addEventListener("DOMContentLoaded", () => {
     drawBrick();
   }
 
-  // -------------------------
-  // Main loop
-  // -------------------------
   function loop(ts) {
     if (!lastCarFrame) lastCarFrame = ts;
     const dt = (ts - lastCarFrame) / 1000;
@@ -904,7 +848,6 @@ document.addEventListener("DOMContentLoaded", () => {
     updateInvaders(dt);
     updateBrick(dt);
 
-    // Draw always so non-active panels are not black.
     drawCarGame();
     drawInvaders();
     drawBrick();
@@ -913,7 +856,6 @@ document.addEventListener("DOMContentLoaded", () => {
   updatePlayButton();
   }
 
-  // Init
   setPlayButtonText();
   hideOverlay();
   setCarCanvasSize();
