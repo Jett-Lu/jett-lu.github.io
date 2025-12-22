@@ -206,14 +206,16 @@ body {
   margin: 50px auto;
   padding: 20px;
   background: white;
-  border: 1px solid transparent;
+  border: 1px solid transparent;           /* invisible 1px start */
   transition:
-    border-color 0.1s ease,
-    border-width 0.2s ease 0.1s;
+    border-color 0.15s ease,                /* thin black appears fast */
+    border-width 0.4s ease 0.8s;            /* longer delay (0.8s) + longer thickening (0.4s) */
+  box-sizing: border-box;
 }
+
 .content-box:hover {
   border-color: black;
-  border-width: 2px;
+  border-width: px;                        /* same minimal thicken as nav & old version */
 }
 
 /* Project Cards */
@@ -339,19 +341,6 @@ body {
     width: 260px;
     height: 390px;
   }
-}
-
-/* Keep your existing duplicated content-box rules (safe but redundant) */
-.content-box {
-  border: 1px solid transparent;
-  transition:
-    border-color 0.1s ease,
-    border-width  0.2s ease 0.1s;
-}
-
-.content-box:hover {
-  border-color: black;
-  border-width: 2px;
 }
 
 /* When playing (expanded), hide the non active games completely */
