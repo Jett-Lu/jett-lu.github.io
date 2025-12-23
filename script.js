@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!selected.length) container.innerHTML = "<p>No projects found.</p>";
     } catch (err) {
       console.error("GitHub fetch failed:", err);
-      container.innerHTML = "<p>Failed to load projects 😢</p>";
+      container.innerHTML = "<p>Failed to load projects</p>";
     }
   }
 
@@ -86,33 +86,27 @@ document.addEventListener("DOMContentLoaded", () => {
   let holdLeft = false;
   let holdRight = false;
 
-
   let lastTouchStartMs = 0;
-let currentIndex = panels.length >= 2 ? 1 : 0;
+  let currentIndex = panels.length >= 2 ? 1 : 0;
 
   function isPlayMode() {
     return gameContainer && gameContainer.classList.contains("expanded");
   }
 
-  function setPlayButtonText() {
-    if (!playBtn) return;
-    playBtn.textContent = isPlayMode() ? "Back" : "Play";
-  }
-
   window.addEventListener("popstate", () => {
-  if (!isPlayMode()) return;
+    if (!isPlayMode()) return;
 
-  gameContainer.classList.remove("expanded");
-  hideOverlay();
-  pauseAllGames();
-  drawAllOnce();
-  setPlayButtonText();
+    gameContainer.classList.remove("expanded");
+    hideOverlay();
+    pauseAllGames();
+    drawAllOnce();
+    updatePlayButton();
 
-  requestAnimationFrame(() => {
-    centerActive(false);
-    positionPlayButton();
+    requestAnimationFrame(() => {
+      centerActive(false);
+      positionPlayButton();
+    });
   });
-});
 
   function positionPlayButton() {
     const btn = document.getElementById("game-play");
@@ -161,7 +155,6 @@ let currentIndex = panels.length >= 2 ? 1 : 0;
     holdLeft = false;
     holdRight = false;
   }
-
 
   function hideOverlay() {
     if (overlay) overlay.style.visibility = "hidden";
@@ -215,7 +208,6 @@ let currentIndex = panels.length >= 2 ? 1 : 0;
 
   let isDragging = false;
   let dragStartX = 0;
-  let dragOffset = 0;
 
   function snapToNearest() {
     if (!viewport || panels.length === 0) return;
@@ -237,7 +229,6 @@ let currentIndex = panels.length >= 2 ? 1 : 0;
     });
 
     setActive(bestIdx);
-    dragOffset = 0;
     centerActive(true);
     drawAllOnce();
     positionPlayButton();
@@ -248,7 +239,6 @@ let currentIndex = panels.length >= 2 ? 1 : 0;
       if (isPlayMode()) return;
       isDragging = true;
       dragStartX = e.clientX;
-      dragOffset = 0;
       carousel.setPointerCapture(e.pointerId);
       carousel.style.transition = "none";
     });
@@ -261,8 +251,8 @@ let currentIndex = panels.length >= 2 ? 1 : 0;
       const isPhone = window.matchMedia("(max-width: 768px)").matches;
       const dragMultiplier = isPhone ? 1.1 : 0.45;
 
-      const dragOffset = dx * dragMultiplier;
-      setTranslateX(getTranslateX() + dragOffset, false);
+      const offset = dx * dragMultiplier;
+      setTranslateX(getTranslateX() + offset, false);
       dragStartX = e.clientX;
     });
 
@@ -289,7 +279,7 @@ let currentIndex = panels.length >= 2 ? 1 : 0;
         pauseAllGames();
         drawAllOnce();
       }
-      setPlayButtonText();
+      updatePlayButton();
       requestAnimationFrame(() => {
         centerActive(false);
         positionPlayButton();
@@ -309,9 +299,17 @@ let currentIndex = panels.length >= 2 ? 1 : 0;
   const carCanvas = document.getElementById("gameCanvas");
   const carCtx = carCanvas ? carCanvas.getContext("2d") : null;
 
+  const invCanvas = document.getElementById("invadersCanvas");
+  const invCtx = invCanvas ? invCanvas.getContext("2d") : null;
+
+  const brickCanvas = document.getElementById("brickCanvas");
+  const brickCtx = brickCanvas ? brickCanvas.getContext("2d") : null;
 
   if (carCanvas) carCanvas.style.touchAction = "none";
-const laneCount = 3;
+  if (invCanvas) invCanvas.style.touchAction = "none";
+  if (brickCanvas) brickCanvas.style.touchAction = "none";
+
+  const laneCount = 3;
   const playerCarArt = "[=]";
   const obstacleArt = "[#]";
 
@@ -458,7 +456,7 @@ const laneCount = 3;
       return;
     } else if (currentIndex === 2) {
       if (brick.gameOver) return;
-    if (brickPaused) return;
+      if (brickPaused) return;
       pauseBrick();
       return;
     } else {
@@ -477,12 +475,7 @@ const laneCount = 3;
     hideOverlay();
   }
 
-  const invCanvas = document.getElementById("invadersCanvas");
-  const invCtx = invCanvas ? invCanvas.getContext("2d") : null;
-
-
-  if (invCanvas) invCanvas.style.touchAction = "none";
-const inv = {
+  const inv = {
     shipX: 190,
     shipY: 540,
     bullets: [],
@@ -513,7 +506,6 @@ const inv = {
     invPaused = false;
     hideOverlay();
   }
-
 
   function setInvCanvasSize() {
     if (!invCanvas) return;
@@ -590,7 +582,7 @@ const inv = {
     if (inv.gameOver) return;
     if (invPaused) return;
 
-    const shipSpeed = 380; // px per second
+    const shipSpeed = 380;
     if (holdLeft) inv.shipX -= shipSpeed * dt;
     if (holdRight) inv.shipX += shipSpeed * dt;
     inv.shipX = clamp(inv.shipX, 20, 380);
@@ -601,14 +593,14 @@ const inv = {
       inv.bullets.push({ x: inv.shipX, y: inv.shipY - 18, dead: false });
     }
 
-    const bulletSpeed = 650; // px per second
+    const bulletSpeed = 650;
     inv.bullets.forEach((b) => (b.y -= bulletSpeed * dt));
     inv.bullets = inv.bullets.filter((b) => b.y > -20 && !b.dead);
 
     let hitEdge = false;
     inv.aliens.forEach((a) => {
       if (!a.alive) return;
-      const alienSpeed = inv.speedX * 90; // convert to px/sec feel
+      const alienSpeed = inv.speedX * 90;
       a.x += alienSpeed * dt * inv.dir;
       if (a.x > 380 || a.x < 20) hitEdge = true;
     });
@@ -646,16 +638,7 @@ const inv = {
     }
   }
 
-  const brickCanvas = document.getElementById("brickCanvas");
-  const brickCtx = brickCanvas ? brickCanvas.getContext("2d") : null;
-
-  if (carCanvas) carCanvas.style.touchAction = "none";
-  if (invCanvas) invCanvas.style.touchAction = "none";
-  if (brickCanvas) brickCanvas.style.touchAction = "none";
-
-
-  if (brickCanvas) brickCanvas.style.touchAction = "none";
-const brick = {
+  const brick = {
     score: 0,
     high: 0,
     gameOver: false,
@@ -683,7 +666,6 @@ const brick = {
     brickPaused = false;
     hideOverlay();
   }
-
 
   function setBrickCanvasSize() {
     if (!brickCanvas) return;
@@ -740,13 +722,13 @@ const brick = {
     if (brick.gameOver) return;
     if (brickPaused) return;
 
-    const paddleSpeed = 540; // px per second
+    const paddleSpeed = 540;
     if (holdLeft) brick.paddleX -= paddleSpeed * dt;
     if (holdRight) brick.paddleX += paddleSpeed * dt;
 
     brick.paddleX = clamp(brick.paddleX, 10, 310);
 
-    const ballSpeedScale = dt * 60; // keeps your original "per frame" feel at 60fps
+    const ballSpeedScale = dt * 60;
     brick.ballX += brick.ballDX * ballSpeedScale;
     brick.ballY += brick.ballDY * ballSpeedScale;
 
@@ -793,7 +775,6 @@ const brick = {
     if (!pos) return;
     const x = pos.x;
 
-
     if (currentIndex === 0 && invPaused && !inv.gameOver) {
       resumeInvadersIfPaused();
       return;
@@ -805,7 +786,7 @@ const brick = {
 
     if (currentIndex === 1 && !carGameOver) {
       if (carPaused) resumeCarIfPaused();
-const mid = carCanvas ? (carCanvas.width / 2) : 200;
+      const mid = carCanvas ? (carCanvas.width / 2) : 200;
 
       if (x < mid) {
         playerCar.lane = Math.max(0, playerCar.lane - 1);
@@ -850,7 +831,6 @@ const mid = carCanvas ? (carCanvas.width / 2) : 200;
   document.addEventListener("keydown", (e) => {
     if (!isPlayMode()) return;
 
-
     if (currentIndex === 0 && invPaused && !inv.gameOver) {
       resumeInvadersIfPaused();
       return;
@@ -894,14 +874,12 @@ const mid = carCanvas ? (carCanvas.width / 2) : 200;
   });
 
   document.addEventListener("pointermove", (e) => {
-  if (!isPlayMode()) return;
-  if (!holdLeft && !holdRight) return;
+    if (!isPlayMode()) return;
+    if (!holdLeft && !holdRight) return;
 
-  const pos = getCanvasPosFromClient(e.clientX, e.clientY);
-  if (!pos) clearHolds();
-  },
-  { passive: true });
-
+    const pos = getCanvasPosFromClient(e.clientX, e.clientY);
+    if (!pos) clearHolds();
+  }, { passive: true });
 
   function pauseAllGames() {
   }
@@ -931,11 +909,10 @@ const mid = carCanvas ? (carCanvas.width / 2) : 200;
     drawInvaders();
     drawBrick();
 
-  requestAnimationFrame(loop);
-  updatePlayButton();
+    requestAnimationFrame(loop);
   }
 
-  setPlayButtonText();
+  updatePlayButton();
   hideOverlay();
   setCarCanvasSize();
   setInvCanvasSize();
