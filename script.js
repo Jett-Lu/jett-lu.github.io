@@ -78,6 +78,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const carousel = document.getElementById("game-carousel");
   const panels = Array.from(document.querySelectorAll(".game-panel"));
   const playBtn = document.getElementById("game-play");
+  const leftArrow = document.getElementById("carousel-left");
+  const rightArrow = document.getElementById("carousel-right");
 
   const overlay = document.getElementById("game-over");
   const overlayText = document.getElementById("game-over-text");
@@ -174,10 +176,53 @@ document.addEventListener("DOMContentLoaded", () => {
     return Math.max(a, Math.min(b, n));
   }
 
+  function updateCarouselArrows() {
+    if (!leftArrow || !rightArrow) return;
+    leftArrow.classList.toggle("hidden", currentIndex <= 0);
+    rightArrow.classList.toggle("hidden", currentIndex >= panels.length - 1);
+  }
+
   function setActive(index) {
     currentIndex = clamp(index, 0, panels.length - 1);
     panels.forEach((p) => p.classList.remove("active"));
     if (panels[currentIndex]) panels[currentIndex].classList.add("active");
+    updateCarouselArrows();
+  }
+
+    function moveCarousel(dir) {
+      if (isPlayMode()) return;
+      if (!panels.length) return;
+      const next = clamp(currentIndex + dir, 0, panels.length - 1);
+      if (next === currentIndex) return;
+      setActive(next);
+      centerActive(true);
+      drawAllOnce();
+      positionPlayButton();
+  }
+  
+  function moveCarousel(dir) {
+    if (isPlayMode()) return;
+    if (!panels.length) return;
+    const next = clamp(currentIndex + dir, 0, panels.length - 1);
+    if (next === currentIndex) return;
+    setActive(next);
+    centerActive(true);
+    drawAllOnce();
+    positionPlayButton();
+    updateCarouselArrows();
+  }
+
+  if (leftArrow) {
+    leftArrow.addEventListener("click", (e) => {
+      e.preventDefault();
+      moveCarousel(-1);
+    });
+  }
+  if (rightArrow) {
+    rightArrow.addEventListener("click", (e) => {
+      e.preventDefault();
+      moveCarousel(1);
+    });
   }
 
   function getTranslateX() {

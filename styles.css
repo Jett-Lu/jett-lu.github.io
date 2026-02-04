@@ -66,6 +66,62 @@ body {
   align-items: center;
   background-color: #000;
   margin-top: 0;
+
+  --game-aspect-w: 2;
+  --game-aspect-h: 3;
+  --game-max-w: 400px; 
+  --game-ui-chrome: 220px;
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  outline: none;
+  padding: 0;
+  color: white;
+  font-size: 36px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 30;
+  display: none;
+  user-select: none;
+}
+
+#carousel-left { left: 14px; }
+#carousel-right { right: 14px; }
+
+.carousel-arrow:focus,
+.carousel-arrow:focus-visible {
+  outline: none;
+}
+
+.carousel-arrow::-moz-focus-inner {
+  border: 0;
+}
+
+/* Optional: subtle hover feedback (desktop only) */
+@media (hover: hover) {
+  .carousel-arrow:hover {
+    opacity: 0.65;
+  }
+}
+
+@media (max-width: 768px) {
+  #game-container:not(.expanded) .carousel-arrow {
+    display: block;
+  }
+}
+
+#game-container.expanded .carousel-arrow {
+  display: none;
+}
+
+.carousel-arrow.hidden {
+  display: none !important;
 }
 
 #game-carousel-viewport {
@@ -89,8 +145,8 @@ body {
 
 .game-panel {
   box-sizing: content-box;
-  width: 320px;
-  height: 480px;
+  aspect-ratio: var(--game-aspect-w) / var(--game-aspect-h);
+  width: clamp(240px, 22vmin, 320px);
   background: black;
   border: 2px solid white;
   display: flex;
@@ -108,8 +164,12 @@ body {
 
 .game-panel.active {
   box-sizing: content-box;
-  width: 400px;
-  height: 600px;
+  aspect-ratio: var(--game-aspect-w) / var(--game-aspect-h);
+  width: min(
+    var(--game-max-w),
+    92vw,
+    calc((100vh - var(--game-ui-chrome)) * (var(--game-aspect-w) / var(--game-aspect-h)))
+  );
   opacity: 1;
 }
 
@@ -164,6 +224,24 @@ body {
 
 #game-container.expanded #game-back {
   display: block;
+}
+
+#carousel-left {
+  left: 12px;
+}
+
+#carousel-right {
+  right: 12px;
+}
+
+@media (max-width: 768px) {
+  #game-container:not(.expanded) .carousel-arrow {
+    display: block;
+  }
+}
+
+#game-container.expanded .carousel-arrow {
+  display: none;
 }
 
 #game-over {
@@ -328,8 +406,12 @@ body {
   }
 
   .game-panel {
-    width: 260px;
-    height: 390px;
+    width: clamp(210px, 62vw, 260px);
+    height: auto;
+   }
+
+  .game-panel.active {
+    height: auto;
   }
 }
 
