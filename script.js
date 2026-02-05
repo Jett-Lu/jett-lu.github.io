@@ -126,17 +126,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!floatingTitle || !gameContainer) return;
 
     const rect = gameContainer.getBoundingClientRect();
-    const gameTop = window.scrollY + rect.top;
-    const gameBottom = window.scrollY + rect.bottom;
     const y = window.scrollY;
 
-    const fadeStart = gameBottom - 600;
-    const fadeEnd = gameBottom + 0;
+    const fadeStart = 0;
+    const fadeEnd = Math.max(1, rect.height * 0.5);
 
-    let t = 0;
-    if (y <= fadeStart) t = 0;
-    else if (y >= fadeEnd) t = 1;
-    else t = (y - fadeStart) / (fadeEnd - fadeStart);
+    const progress = (y - fadeStart) / (fadeEnd - fadeStart);
+    const t = Math.max(0, Math.min(1, progress));
 
     const opacity = 1 - t;
     const shiftY = 60 * t;
