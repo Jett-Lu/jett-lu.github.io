@@ -28,14 +28,50 @@ document.addEventListener("DOMContentLoaded", () => {
   );
   fadeEls.forEach((el) => observer.observe(el));
 
-  async function loadProjects() {
+  
+  const PROJECTS_CACHE_KEY = "jl_projects_cache_v1";
+  const PROJECTS_CACHE_TTL_MS = 1000 * 60 * 30; // 30 minutes
+
+  function readProjectsCache() {
+    try {
+      const raw = sessionStorage.getItem(PROJECTS_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.t !== "number" || !Array.isArray(parsed.repos)) return null;
+      if (Date.now() - parsed.t > PROJECTS_CACHE_TTL_MS) return null;
+      return parsed.repos;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeProjectsCache(repos) {
+    try {
+      sessionStorage.setItem(PROJECTS_CACHE_KEY, JSON.stringify({ t: Date.now(), repos }));
+    } catch {
+      // ignore
+    }
+  }
+
+  async function loadProjects(opts = { force: false }) {
     const container = document.getElementById("project-container");
     if (!container) return;
 
     container.innerHTML = "<p>Loading...</p>";
     try {
-      const res = await fetch("https://api.github.com/users/Jett-Lu/repos");
-      const allRepos = await res.json();
+      let allRepos = null;
+
+      if (!opts.force) {
+        const cached = readProjectsCache();
+        if (cached) allRepos = cached;
+      }
+
+      if (!allRepos) {
+        const res = await fetch("https://api.github.com/users/Jett-Lu/repos");
+        allRepos = await res.json();
+        if (Array.isArray(allRepos)) writeProjectsCache(allRepos);
+      }
+
       const repos = Array.isArray(allRepos) ? allRepos.filter((r) => r && !r.fork) : [];
       const selected = repos.sort(() => 0.5 - Math.random()).slice(0, 3);
 
@@ -43,11 +79,19 @@ document.addEventListener("DOMContentLoaded", () => {
       for (const repo of selected) {
         const desc = repo.description || "No description provided.";
         let langList = "N/A";
+
         try {
-          const langRes = await fetch(repo.languages_url);
-          const langs = await langRes.json();
-          langList = Object.keys(langs || {}).join(", ") || "N/A";
-        } catch (e) {
+          const langCacheKey = `jl_lang_${repo.name}`;
+          const cachedLang = sessionStorage.getItem(langCacheKey);
+          if (cachedLang) {
+            langList = cachedLang;
+          } else {
+            const langRes = await fetch(repo.languages_url);
+            const langs = await langRes.json();
+            langList = Object.keys(langs || {}).join(", ") || "N/A";
+            sessionStorage.setItem(langCacheKey, langList);
+          }
+        } catch {
           langList = "N/A";
         }
 
@@ -70,10 +114,48 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const refreshBtn = document.getElementById("refresh-projects");
-  if (refreshBtn) refreshBtn.addEventListener("click", loadProjects);
-  loadProjects();
+  if (refreshBtn) refreshBtn.addEventListener("click", () => loadProjects({ force: true }));
+  loadProjects({ force: false });
+
 
   const gameContainer = document.getElementById("game-container");
+  const floatingTitle = document.getElementById("fixed-name-title");
+
+  let titleRaf = 0;
+  function updateFloatingTitle() {
+    if (!floatingTitle || !gameContainer) return;
+
+    const rect = gameContainer.getBoundingClientRect();
+    const gameTop = window.scrollY + rect.top;
+    const gameBottom = window.scrollY + rect.bottom;
+    const y = window.scrollY;
+
+    const fadeStart = gameBottom - 600;
+    const fadeEnd = gameBottom + 0;
+
+    let t = 0;
+    if (y <= fadeStart) t = 0;
+    else if (y >= fadeEnd) t = 1;
+    else t = (y - fadeStart) / (fadeEnd - fadeStart);
+
+    const opacity = 1 - t;
+    const shiftY = 60 * t;
+
+    floatingTitle.style.setProperty("--title-opacity", String(opacity));
+    floatingTitle.style.setProperty("--title-shift-y", `${shiftY}px`);
+  }
+
+  function requestTitleUpdate() {
+    if (titleRaf) return;
+    titleRaf = requestAnimationFrame(() => {
+      titleRaf = 0;
+      updateFloatingTitle();
+    });
+  }
+
+  window.addEventListener("scroll", requestTitleUpdate, { passive: true });
+  window.addEventListener("resize", requestTitleUpdate);
+
   const viewport = document.getElementById("game-carousel-viewport");
   const carousel = document.getElementById("game-carousel");
   const panels = Array.from(document.querySelectorAll(".game-panel"));
@@ -189,22 +271,14 @@ document.addEventListener("DOMContentLoaded", () => {
     updateCarouselArrows();
   }
 
-    function moveCarousel(dir) {
-      if (isPlayMode()) return;
-      if (!panels.length) return;
-      const next = clamp(currentIndex + dir, 0, panels.length - 1);
-      if (next === currentIndex) return;
-      setActive(next);
-      centerActive(true);
-      drawAllOnce();
-      positionPlayButton();
-  }
-  
+
   function moveCarousel(dir) {
     if (isPlayMode()) return;
     if (!panels.length) return;
+
     const next = clamp(currentIndex + dir, 0, panels.length - 1);
     if (next === currentIndex) return;
+
     setActive(next);
     centerActive(true);
     drawAllOnce();
@@ -969,4 +1043,5 @@ document.addEventListener("DOMContentLoaded", () => {
   drawAllOnce();
 
   requestAnimationFrame(loop);
+  requestTitleUpdate();
 });

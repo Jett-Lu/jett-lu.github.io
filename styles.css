@@ -50,12 +50,24 @@ body {
   position: fixed;
   top: 120px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, var(--title-shift-y, 0px));
+  opacity: var(--title-opacity, 1);
   font-size: 36px;
   color: white;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
   z-index: 99;
+  pointer-events: none;
+  transition: opacity 120ms linear, transform 120ms linear;
 }
+
+#mobile-name {
+  display: none;
+  font-weight: bold;
+  font-size: 16px;
+  padding: 6px 10px;
+}
+
+
 
 #game-container {
   position: relative;
@@ -73,22 +85,24 @@ body {
   --game-ui-chrome: 220px;
 }
 
+
 .carousel-arrow {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
   background: none;
   border: none;
-  outline: none;
   padding: 0;
   color: white;
-  font-size: 36px;
-  font-weight: bold;
+  font-size: 30px;
   line-height: 1;
   cursor: pointer;
   z-index: 30;
   display: none;
   user-select: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+
 }
 
 #carousel-left { left: 14px; }
@@ -103,25 +117,14 @@ body {
   border: 0;
 }
 
-/* Optional: subtle hover feedback (desktop only) */
+.carousel-arrow.hidden {
+  display: none !important;
+}
+
 @media (hover: hover) {
   .carousel-arrow:hover {
     opacity: 0.65;
   }
-}
-
-@media (max-width: 768px) {
-  #game-container:not(.expanded) .carousel-arrow {
-    display: block;
-  }
-}
-
-#game-container.expanded .carousel-arrow {
-  display: none;
-}
-
-.carousel-arrow.hidden {
-  display: none !important;
 }
 
 #game-carousel-viewport {
@@ -232,16 +235,6 @@ body {
 
 #carousel-right {
   right: 12px;
-}
-
-@media (max-width: 768px) {
-  #game-container:not(.expanded) .carousel-arrow {
-    display: block;
-  }
-}
-
-#game-container.expanded .carousel-arrow {
-  display: none;
 }
 
 #game-over {
@@ -369,8 +362,13 @@ body {
     position: fixed;
     top: 0;
     left: 0;
+    width: 100%;
     background: transparent;
     z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 10px 12px;
   }
 
   #fixed-name-title {
@@ -379,8 +377,7 @@ body {
 
   #hamburger {
     display: block;
-    position: absolute;
-    right: 16px;
+    position: static;
     font-size: 16px;
     background: white;
     border: 2px solid black;
@@ -393,22 +390,28 @@ body {
     display: none;
     flex-direction: column;
     position: fixed;
-    top: 0;
+    top: 0px;
     right: 0;
     width: 100%;
     background: #fff;
     border-top: 1px solid #ccc;
     z-index: 999;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
 
   .menu ul.show {
     display: flex;
   }
 
+  #game-container:not(.expanded) .carousel-arrow {
+    display: block;
+  }
+
   .game-panel {
     width: clamp(210px, 62vw, 260px);
     height: auto;
-   }
+  }
 
   .game-panel.active {
     height: auto;
