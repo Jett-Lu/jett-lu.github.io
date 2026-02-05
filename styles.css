@@ -372,7 +372,11 @@ body {
   }
 
   #fixed-name-title {
-    display: none;
+    display: block;
+    top: 64px;          
+    font-size: 26px;   
+    z-index: 998;       
+    pointer-events: none; 
   }
 
   #hamburger {
