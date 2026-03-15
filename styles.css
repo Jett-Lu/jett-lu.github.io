@@ -48,26 +48,31 @@ body {
 
 #fixed-name-title {
   position: fixed;
-  top: 120px;
+  top: clamp(70px, 10vh, 140px);
   left: 50%;
   transform: translate(-50%, var(--title-shift-y, 0px));
   opacity: var(--title-opacity, 1);
-  font-size: 36px;
+
+  font-size: clamp(26px, 4vw, 48px);
+
   color: white;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+
   z-index: 99;
   pointer-events: none;
+
   transition: opacity 120ms linear, transform 120ms linear;
 }
 
-#mobile-name {
-  display: none;
-  font-weight: bold;
-  font-size: 16px;
-  padding: 6px 10px;
+@media (max-width: 768px) {
+  #fixed-name-title {
+    display: block;
+    top: 64px;
+    font-size: clamp(20px, 6vw, 30px);
+    z-index: 998;
+    pointer-events: none;
+  }
 }
-
-
 
 #game-container {
   position: relative;
