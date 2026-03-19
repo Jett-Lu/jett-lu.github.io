@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const PROJECTS_CACHE_KEY = "jl_projects_cache_v1";
   const PROJECTS_CACHE_TTL_MS = 1000 * 60 * 30;
+  const PROJECTS_OFFSET_KEY = "jl_projects_offset_v1";
   const PROJECT_LIMIT = 3;
   const FEATURED_TOPIC = "featured";
   const GITHUB_REPOS_URL = "https://api.github.com/users/Jett-Lu/repos?per_page=100&sort=updated&type=owner";
@@ -177,6 +178,43 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function readProjectsOffset() {
+    try {
+      const value = Number(sessionStorage.getItem(PROJECTS_OFFSET_KEY));
+      return Number.isInteger(value) && value >= 0 ? value : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function writeProjectsOffset(value) {
+    try {
+      sessionStorage.setItem(PROJECTS_OFFSET_KEY, String(value));
+    } catch {
+      // ignore
+    }
+  }
+
+  function selectProjectWindow(repos, advance) {
+    if (repos.length === 0) return [];
+
+    const start = repos.length <= PROJECT_LIMIT ? 0 : readProjectsOffset() % repos.length;
+    const selected = [];
+
+    for (let i = 0; i < Math.min(PROJECT_LIMIT, repos.length); i += 1) {
+      selected.push(repos[(start + i) % repos.length]);
+    }
+
+    if (repos.length > PROJECT_LIMIT) {
+      const nextOffset = advance ? (start + PROJECT_LIMIT) % repos.length : start;
+      writeProjectsOffset(nextOffset);
+    } else {
+      writeProjectsOffset(0);
+    }
+
+    return selected;
+  }
+
   function sanitizeUrl(value) {
     try {
       const url = new URL(String(value));
@@ -260,9 +298,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const repos = allRepos.filter((repo) => repo && !repo.fork);
       const featuredRepos = repos.filter(hasFeaturedTopic).sort(compareRepos);
       const fallbackRepos = repos.filter((repo) => !hasFeaturedTopic(repo)).sort(compareRepos);
-      const selected = [...featuredRepos, ...fallbackRepos]
+      const orderedRepos = [...featuredRepos, ...fallbackRepos]
         .filter((repo, index, list) => list.findIndex((candidate) => candidate.id === repo.id) === index)
-        .slice(0, PROJECT_LIMIT);
+      const selected = selectProjectWindow(orderedRepos, opts.force);
 
       projectContainer.innerHTML = "";
 
