@@ -3,91 +3,178 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jett Lu</title>
+  <title>Jett Lu | Software Engineering Portfolio</title>
+  <meta
+    name="description"
+    content="Jett Lu's software engineering portfolio featuring projects, experience, and interactive browser games."
+  />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+  />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Jett Lu | Software Engineering Portfolio" />
+  <meta
+    property="og:description"
+    content="Projects, experience, and interactive browser games built by Jett Lu."
+  />
+  <meta property="og:url" content="https://jett-lu.github.io/" />
+  <meta property="og:image" content="https://jett-lu.github.io/github-icon.png" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Jett Lu | Software Engineering Portfolio" />
+  <meta
+    name="twitter:description"
+    content="Projects, experience, and interactive browser games built by Jett Lu."
+  />
+  <meta name="theme-color" content="#000000" />
+  <link rel="icon" type="image/png" href="github-icon.png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
 
+  <header>
+    <nav class="menu" aria-label="Primary">
+      <button
+        id="hamburger"
+        type="button"
+        aria-label="Open navigation menu"
+        aria-controls="nav-links"
+        aria-expanded="false"
+      >
+        &#9776;
+      </button>
+      <ul id="nav-links">
+        <li><a href="#about">About</a></li>
+        <li><a href="#projects">Projects</a></li>
+        <li><a href="#contact">Contact</a></li>
+        <li>
+          <a href="Resume-JettLu.pdf" target="_blank" rel="noopener noreferrer">
+            Resume
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </header>
 
-  <nav class="menu">
-    <button id="hamburger" aria-label="Menu">&#9776;</button>
-    <ul id="nav-links">
-      <li><a href="#about">About</a></li>
-      <li><a href="#projects">Projects</a></li>
-      <li><a href="#contact">Contact</a></li>
-      <li><a href="Resume-JettLu.pdf" target="_blank">Resume</a></li>
-    </ul>
-  </nav>
+  <main id="main-content">
+    <section
+      id="game-container"
+      aria-labelledby="fixed-name-title"
+      aria-describedby="game-instructions"
+    >
+      <div id="fixed-name-title">Jett Lu</div>
+      <p id="game-instructions" class="sr-only">
+        Browse the game carousel with the arrow buttons or keyboard arrow keys.
+        Press play to open the selected game.
+      </p>
 
-  <div id="game-container">
-    <div id="fixed-name-title">Jett Lu</div>
+      <button id="carousel-left" class="carousel-arrow" aria-label="Previous game" type="button">
+        &lt;
+      </button>
 
-  <button id="carousel-left" class="carousel-arrow" aria-label="Previous game" type="button">
-    &lt;
-  </button>
-
-  <div id="game-carousel-viewport">
-    <div id="game-carousel">
-      <div class="game-panel" data-index="0">
-        <canvas id="invadersCanvas"></canvas>
+      <div
+        id="game-carousel-viewport"
+        tabindex="0"
+        role="region"
+        aria-label="Game carousel"
+        aria-roledescription="carousel"
+      >
+        <div id="game-carousel">
+          <div class="game-panel" data-index="0" role="group" aria-label="Space Invaders game">
+            <canvas id="invadersCanvas" aria-label="Space Invaders game preview">
+              Space Invaders game preview
+            </canvas>
+          </div>
+          <div class="game-panel active" data-index="1" role="group" aria-label="Racing game">
+            <canvas id="gameCanvas" aria-label="Racing game preview">
+              Racing game preview
+            </canvas>
+          </div>
+          <div class="game-panel" data-index="2" role="group" aria-label="Brick breaker game">
+            <canvas id="brickCanvas" aria-label="Brick breaker game preview">
+              Brick breaker game preview
+            </canvas>
+          </div>
+        </div>
       </div>
-      <div class="game-panel active" data-index="1">
-        <canvas id="gameCanvas"></canvas>
+
+      <button id="carousel-right" class="carousel-arrow" aria-label="Next game" type="button">
+        &gt;
+      </button>
+
+      <button id="game-play" type="button" aria-label="Play selected game">Play</button>
+
+      <div id="game-over" role="dialog" aria-modal="true" aria-hidden="true" hidden>
+        <div id="game-over-box">
+          <p id="game-over-text" aria-live="polite">Game Over</p>
+        </div>
       </div>
+    </section>
 
-      <div class="game-panel" data-index="2">
-        <canvas id="brickCanvas"></canvas>
+    <section id="about" class="content-box fade-in-section">
+      <h2>About Me</h2>
+      <p><br>
+        Software Engineering student with hands-on experience in regulated government environments. Currently supporting system deployment and lab infrastructure at <a class="text-link" href="https://www.olg.ca/en/home.html" target="_blank" rel="noopener noreferrer">Ontario Lottery and Gaming Corporation</a>, where I develop internal automation tools/scripts, integrate vendor APIs for streamlined workflows, and coordinate application/patch deployments across controlled Linux and Windows environments to ensure configuration integrity, deployment readiness, and stable integration testing.
+      </p><br>
+
+      <p><br>
+        Previously contributed as a Software Engineering Associate at the <a class="text-link" href="https://www.ontario.ca/page/ministry-transportation" target="_blank" rel="noopener noreferrer">Ontario Ministry of Transportation</a>, developing software tools, automation scripts, and CI/CD pipeline enhancements for Laboratory Information Management Systems (LIMS) supporting province-wide workflows. Performed system-level QA testing/validation, identified bottlenecks and implemented data-driven automation to reduce manual effort and processing time, deployed hardware safety solutions (sensors/monitoring/ergonomic setups) for lab health & safety, and improved LIMS web portal accessibility in full alignment with AODA and WCAG standards.
+      </p><br>
+
+      <p><br>
+        Pursuing a Bachelor of Technology in Software Engineering Technology at McMaster University, with a focus on systems programming, infrastructure engineering, DevOps, CI/CD, networking, security, and advanced programming concepts. Proficient in C, Python, PowerShell, and tools for automation, configuration management, and deployment.
+      </p>
+    </section>
+
+    <section id="projects" class="content-box fade-in-section" aria-labelledby="projects-heading">
+      <h2 id="projects-heading">Projects</h2>
+      <div id="project-container" class="project-grid" aria-live="polite"></div>
+      <button id="refresh-projects" type="button">Refresh Projects</button>
+      <noscript>
+        <p class="no-script-message">
+          Featured projects are available on
+          <a class="text-link" href="https://github.com/Jett-Lu?tab=repositories" target="_blank" rel="noopener noreferrer">
+            GitHub
+          </a>.
+        </p>
+      </noscript>
+    </section>
+
+    <section id="contact" class="content-box fade-in-section">
+      <h2>Contact</h2>
+      <div id="contact-icons">
+        <a href="mailto:Jett.Jiacheng.Lu@gmail.com" aria-label="Email Jett Lu">
+          <img src="email-icon.png" alt="Email" />
+        </a>
+        <a
+          href="https://github.com/Jett-Lu"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Visit Jett Lu on GitHub"
+        >
+          <img src="github-icon.png" alt="GitHub" />
+        </a>
+        <a
+          href="https://linkedin.com/in/jett-lu"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Visit Jett Lu on LinkedIn"
+        >
+          <img src="linkedin-icon.png" alt="LinkedIn" />
+        </a>
       </div>
-    </div>
-  </div>
-
-    <button id="carousel-right" class="carousel-arrow" aria-label="Next game" type="button">
-      &gt;
-    </button>
-
-  <button id="game-play" aria-label="Play selected game">Play</button>
-
-  <div id="game-over">
-    <div id="game-over-box">
-      <p id="game-over-text">Game Over</p>
-    </div>
-  </div>
-
-</div>
-
-  <section id="about" class="content-box fade-in-section">
-  <h2>About Me</h2>
-  <p><br>
-    Software Engineering student with hands-on experience in regulated government environments. Currently supporting system deployment and lab infrastructure at <a href="https://www.olg.ca/en/home.html" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">Ontario Lottery and Gaming Corporation</a>, where I develop internal automation tools/scripts, integrate vendor APIs for streamlined workflows, and coordinate application/patch deployments across controlled Linux and Windows environments to ensure configuration integrity, deployment readiness, and stable integration testing.
-  </p><br>
-  
-  <p><br>
-    Previously contributed as a Software Engineering Associate at the <a href="https://www.ontario.ca/page/ministry-transportation" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">Ontario Ministry of Transportation</a>, developing software tools, automation scripts, and CI/CD pipeline enhancements for Laboratory Information Management Systems (LIMS) supporting province-wide workflows. Performed system-level QA testing/validation, identified bottlenecks and implemented data-driven automation to reduce manual effort and processing time, deployed hardware safety solutions (sensors/monitoring/ergonomic setups) for lab health & safety, and improved LIMS web portal accessibility in full alignment with AODA and WCAG standards.
-  </p><br>
-
-  <p><br>
-    Pursuing a Bachelor of Technology in Software Engineering Technology at McMaster University, with a focus on systems programming, infrastructure engineering, DevOps, CI/CD, networking, security, and advanced programming concepts. Proficient in C, Python, PowerShell, and tools for automation, configuration management, and deployment.
-  </p>
-  </section>
-
-  <section id="projects" class="content-box fade-in-section">
-    <h2>Projects</h2>
-    <div id="project-container" class="project-grid"></div>
-    <button id="refresh-projects">Refresh Projects</button>
-  </section>
-
-  <section id="contact" class="content-box fade-in-section">
-    <h2>Contact</h2>
-    <div id="contact-icons">
-      <a href="mailto:Jett.Jiacheng.Lu@gmail.com"><img src="email-icon.png" alt="Email"></a>
-      <a href="https://github.com/Jett-Lu" target="_blank"><img src="github-icon.png" alt="GitHub"></a>
-      <a href="https://linkedin.com/in/jett-lu" target="_blank"><img src="linkedin-icon.png" alt="LinkedIn"></a>
-    </div>
-  </section>
+    </section>
+  </main>
 
   <footer id="site-footer">
     <p>&copy; 2026 Jett Lu</p>
-    <p>Site code available <a href="https://github.com/Jett-Lu/jett-lu.github.io" target="_blank">on GitHub</a>.</p>
+    <p>
+      Site code available
+      <a href="https://github.com/Jett-Lu/jett-lu.github.io" target="_blank" rel="noopener noreferrer">
+        on GitHub
+      </a>.
+    </p>
   </footer>
 
   <script src="script.js"></script>

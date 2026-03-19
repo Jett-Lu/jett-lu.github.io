@@ -1,36 +1,160 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const PROJECTS_CACHE_KEY = "jl_projects_cache_v1";
+  const PROJECTS_CACHE_TTL_MS = 1000 * 60 * 30;
+  const PROJECT_LIMIT = 3;
+  const FEATURED_TOPIC = "featured";
+  const GITHUB_REPOS_URL = "https://api.github.com/users/Jett-Lu/repos?per_page=100&sort=updated&type=owner";
+  const GITHUB_API_HEADERS = { Accept: "application/vnd.github+json" };
+  const HIGH_SCORE_KEYS = {
+    car: "jl_highscore_car",
+    invaders: "jl_highscore_invaders",
+    brick: "jl_highscore_brick"
+  };
 
-  function updatePlayButton() {
-    const btn = document.getElementById("game-play");
-    const container = document.getElementById("game-container");
-    if (!btn || !container) return;
-    btn.textContent = container.classList.contains("expanded") ? "Back" : "Play";
-  }
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const hamburger = document.getElementById("hamburger");
+  const navLinks = document.getElementById("nav-links");
+  const navItems = navLinks ? Array.from(navLinks.querySelectorAll("a")) : [];
+  const fadeEls = document.querySelectorAll(".fade-in-section");
+  const projectContainer = document.getElementById("project-container");
+  const refreshBtn = document.getElementById("refresh-projects");
+  const gameContainer = document.getElementById("game-container");
+  const floatingTitle = document.getElementById("fixed-name-title");
+  const viewport = document.getElementById("game-carousel-viewport");
+  const carousel = document.getElementById("game-carousel");
+  const panels = Array.from(document.querySelectorAll(".game-panel"));
+  const playBtn = document.getElementById("game-play");
+  const leftArrow = document.getElementById("carousel-left");
+  const rightArrow = document.getElementById("carousel-right");
+  const overlay = document.getElementById("game-over");
+  const overlayText = document.getElementById("game-over-text");
+  const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
+  const carCanvas = document.getElementById("gameCanvas");
+  const carCtx = carCanvas ? carCanvas.getContext("2d") : null;
+  const invCanvas = document.getElementById("invadersCanvas");
+  const invCtx = invCanvas ? invCanvas.getContext("2d") : null;
+  const brickCanvas = document.getElementById("brickCanvas");
+  const brickCtx = brickCanvas ? brickCanvas.getContext("2d") : null;
+
+  if (carCanvas) carCanvas.style.touchAction = "none";
+  if (invCanvas) invCanvas.style.touchAction = "none";
+  if (brickCanvas) brickCanvas.style.touchAction = "none";
+
+  let titleRaf = 0;
+  let holdLeft = false;
+  let holdRight = false;
+  let lastTouchStartMs = 0;
+  let currentIndex = panels.length >= 2 ? 1 : 0;
+  let isDragging = false;
+  let dragStartX = 0;
+  let dragMoved = false;
+  let pendingPanelIndex = null;
+  let suppressPanelClickUntil = 0;
+  let lastCarFrame = null;
+
+  const laneCount = 3;
+  const playerCarArt = "[=]";
+  const obstacleArt = "[#]";
+
+  const storedScores = {
+    car: readStoredNumber(HIGH_SCORE_KEYS.car),
+    invaders: readStoredNumber(HIGH_SCORE_KEYS.invaders),
+    brick: readStoredNumber(HIGH_SCORE_KEYS.brick)
+  };
+
+  let carSpeed = 5;
+  const carAcceleration = 0.2;
+  let carScore = 0;
+  let carHighScore = storedScores.car;
+  let lastObstacleSpawn = Date.now();
+  let playerCar = { y: 500, lane: 1 };
+  let obstacles = [];
+  let carPaused = false;
+  let carGameOver = false;
+
+  const inv = {
+    shipX: 190,
+    shipY: 540,
+    bullets: [],
+    aliens: [],
+    dir: 1,
+    speedX: 0.9,
+    stepDown: 18,
+    lastShot: 0,
+    shotMs: 220,
+    score: 0,
+    high: storedScores.invaders,
+    gameOver: false
+  };
+
+  const brick = {
+    score: 0,
+    high: storedScores.brick,
+    gameOver: false,
+    paddleX: 156,
+    ballX: 200,
+    ballY: 360,
+    ballDX: 2.6,
+    ballDY: -2.8,
+    bricks: []
+  };
+
+  let invPaused = false;
+  let brickPaused = false;
 
   document.documentElement.classList.add("js");
 
-  const hamburger = document.getElementById("hamburger");
-  const navLinks = document.getElementById("nav-links");
-  if (hamburger && navLinks) {
-    hamburger.addEventListener("click", () => navLinks.classList.toggle("show"));
+  function readStoredNumber(key) {
+    try {
+      const value = Number(localStorage.getItem(key));
+      return Number.isFinite(value) && value >= 0 ? value : 0;
+    } catch {
+      return 0;
+    }
   }
 
-  const fadeEls = document.querySelectorAll(".fade-in-section");
-  const observer = new IntersectionObserver(
-    (entries, obs) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add("is-visible");
-        obs.unobserve(entry.target);
-      });
-    },
-    { threshold: 0.5 }
-  );
-  fadeEls.forEach((el) => observer.observe(el));
+  function writeStoredNumber(key, value) {
+    try {
+      localStorage.setItem(key, String(value));
+    } catch {
+      // ignore
+    }
+  }
 
-  
-  const PROJECTS_CACHE_KEY = "jl_projects_cache_v1";
-  const PROJECTS_CACHE_TTL_MS = 1000 * 60 * 30; // 30 minutes
+  function setMenuOpen(open) {
+    if (!hamburger || !navLinks) return;
+    navLinks.classList.toggle("show", open);
+    hamburger.setAttribute("aria-expanded", String(open));
+    hamburger.setAttribute("aria-label", open ? "Close navigation menu" : "Open navigation menu");
+  }
+
+  function updatePlayButton() {
+    if (!playBtn || !gameContainer) return;
+    const expanded = gameContainer.classList.contains("expanded");
+    playBtn.textContent = expanded ? "Back" : "Play";
+    playBtn.setAttribute("aria-label", expanded ? "Exit selected game" : "Play selected game");
+  }
+
+  function setFadeInState() {
+    if (prefersReducedMotion.matches || typeof IntersectionObserver !== "function") {
+      fadeEls.forEach((el) => el.classList.add("is-visible"));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries, obs) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-visible");
+          obs.unobserve(entry.target);
+        });
+      },
+      { threshold: 0.35 }
+    );
+
+    fadeEls.forEach((el) => observer.observe(el));
+  }
 
   function readProjectsCache() {
     try {
@@ -53,16 +177,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function escapeHtml(value) {
-    return String(value).replace(/[&<>\"']/g, (char) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '\"': "&quot;",
-      "'": "&#39;"
-    }[char]));
-  }
-
   function sanitizeUrl(value) {
     try {
       const url = new URL(String(value));
@@ -73,11 +187,60 @@ document.addEventListener("DOMContentLoaded", () => {
     return "https://github.com/Jett-Lu";
   }
 
-  async function loadProjects(opts = { force: false }) {
-    const container = document.getElementById("project-container");
-    if (!container) return;
+  function hasFeaturedTopic(repo) {
+    return Array.isArray(repo.topics) && repo.topics.some((topic) => String(topic).toLowerCase() === FEATURED_TOPIC);
+  }
 
-    container.innerHTML = "<p>Loading...</p>";
+  function hasProjectSummary(repo) {
+    return Boolean(repo.description || repo.homepage);
+  }
+
+  function compareRepos(a, b) {
+    const archivedDiff = Number(a.archived) - Number(b.archived);
+    if (archivedDiff !== 0) return archivedDiff;
+
+    const summaryDiff = Number(hasProjectSummary(b)) - Number(hasProjectSummary(a));
+    if (summaryDiff !== 0) return summaryDiff;
+
+    const updatedDiff = new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    if (updatedDiff !== 0) return updatedDiff;
+
+    const starsDiff = (b.stargazers_count || 0) - (a.stargazers_count || 0);
+    if (starsDiff !== 0) return starsDiff;
+
+    return a.name.localeCompare(b.name);
+  }
+
+  function createProjectCard(repo, langList) {
+    const card = document.createElement("article");
+    card.className = "project-card";
+
+    const title = document.createElement("h3");
+    title.textContent = repo.name;
+
+    const description = document.createElement("p");
+    description.textContent = repo.description || "No description provided.";
+
+    const languages = document.createElement("p");
+    const languagesLabel = document.createElement("strong");
+    languagesLabel.textContent = "Languages:";
+    languages.append(languagesLabel, ` ${langList}`);
+
+    const link = document.createElement("a");
+    link.href = sanitizeUrl(repo.html_url);
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "View on GitHub ->";
+
+    card.append(title, description, languages, link);
+    return card;
+  }
+
+  async function loadProjects(opts = { force: false }) {
+    if (!projectContainer) return;
+
+    projectContainer.innerHTML = "<p>Loading featured projects...</p>";
+
     try {
       let allRepos = null;
 
@@ -87,18 +250,23 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (!allRepos) {
-        const res = await fetch("https://api.github.com/users/Jett-Lu/repos");
+        const res = await fetch(GITHUB_REPOS_URL, { headers: GITHUB_API_HEADERS });
         if (!res.ok) throw new Error(`GitHub API request failed with status ${res.status}`);
         allRepos = await res.json();
-        if (Array.isArray(allRepos)) writeProjectsCache(allRepos);
+        if (!Array.isArray(allRepos)) throw new Error("GitHub API returned an unexpected response.");
+        writeProjectsCache(allRepos);
       }
 
-      const repos = Array.isArray(allRepos) ? allRepos.filter((r) => r && !r.fork) : [];
-      const selected = repos.sort(() => 0.5 - Math.random()).slice(0, 3);
+      const repos = allRepos.filter((repo) => repo && !repo.fork);
+      const featuredRepos = repos.filter(hasFeaturedTopic).sort(compareRepos);
+      const fallbackRepos = repos.filter((repo) => !hasFeaturedTopic(repo)).sort(compareRepos);
+      const selected = [...featuredRepos, ...fallbackRepos]
+        .filter((repo, index, list) => list.findIndex((candidate) => candidate.id === repo.id) === index)
+        .slice(0, PROJECT_LIMIT);
 
-      container.innerHTML = "";
+      projectContainer.innerHTML = "";
+
       for (const repo of selected) {
-        const desc = repo.description || "No description provided.";
         let langList = "N/A";
 
         try {
@@ -107,7 +275,8 @@ document.addEventListener("DOMContentLoaded", () => {
           if (cachedLang) {
             langList = cachedLang;
           } else {
-            const langRes = await fetch(repo.languages_url);
+            const langRes = await fetch(repo.languages_url, { headers: GITHUB_API_HEADERS });
+            if (!langRes.ok) throw new Error(`GitHub API request failed with status ${langRes.status}`);
             const langs = await langRes.json();
             langList = Object.keys(langs || {}).join(", ") || "N/A";
             sessionStorage.setItem(langCacheKey, langList);
@@ -116,129 +285,91 @@ document.addEventListener("DOMContentLoaded", () => {
           langList = "N/A";
         }
 
-        const safeName = escapeHtml(repo.name);
-        const safeDesc = escapeHtml(desc);
-        const safeLangList = escapeHtml(langList);
-        const safeRepoUrl = sanitizeUrl(repo.html_url);
-
-        const card = document.createElement("div");
-        card.className = "project-card";
-        card.innerHTML = `
-          <h3>${safeName}</h3>
-          <p>${safeDesc}</p>
-          <p><strong>Languages:</strong> ${safeLangList}</p>
-          <a href="${safeRepoUrl}" target="_blank">View on GitHub -&gt;</a>
-        `;
-        const cardLink = card.querySelector("a");
-        if (cardLink) cardLink.rel = "noopener noreferrer";
-        container.appendChild(card);
+        projectContainer.appendChild(createProjectCard(repo, langList));
       }
 
-      if (!selected.length) container.innerHTML = "<p>No projects found.</p>";
+      if (!selected.length) {
+        projectContainer.innerHTML = "<p>No featured projects found.</p>";
+      }
     } catch (err) {
       console.error("GitHub fetch failed:", err);
-      container.innerHTML = "<p>Failed to load projects</p>";
+      projectContainer.innerHTML = "<p>Failed to load featured projects. Please try again.</p>";
     }
   }
 
-  const refreshBtn = document.getElementById("refresh-projects");
-  if (refreshBtn) refreshBtn.addEventListener("click", () => loadProjects({ force: true }));
-  loadProjects({ force: false });
-
-
-  const gameContainer = document.getElementById("game-container");
-  const floatingTitle = document.getElementById("fixed-name-title");
-
-  let titleRaf = 0;
-  function updateFloatingTitle() {
-    if (!floatingTitle || !gameContainer) return;
-
-    const rect = gameContainer.getBoundingClientRect();
-    const y = window.scrollY;
-
-    const fadeStart = 0;
-    const fadeEnd = Math.max(1, rect.height * 0.5);
-
-    const progress = (y - fadeStart) / (fadeEnd - fadeStart);
-    const t = Math.max(0, Math.min(1, progress));
-
-    const opacity = 1 - t;
-    const shiftY = 60 * t;
-
-    floatingTitle.style.setProperty("--title-opacity", String(opacity));
-    floatingTitle.style.setProperty("--title-shift-y", `${shiftY}px`);
-  }
-
-  function requestTitleUpdate() {
-    if (titleRaf) return;
-    titleRaf = requestAnimationFrame(() => {
-      titleRaf = 0;
-      updateFloatingTitle();
-    });
-  }
-
-  window.addEventListener("scroll", requestTitleUpdate, { passive: true });
-  window.addEventListener("resize", requestTitleUpdate);
-
-  const viewport = document.getElementById("game-carousel-viewport");
-  const carousel = document.getElementById("game-carousel");
-  const panels = Array.from(document.querySelectorAll(".game-panel"));
-  const playBtn = document.getElementById("game-play");
-  const leftArrow = document.getElementById("carousel-left");
-  const rightArrow = document.getElementById("carousel-right");
-
-  const overlay = document.getElementById("game-over");
-  const overlayText = document.getElementById("game-over-text");
-  const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-
-  let holdLeft = false;
-  let holdRight = false;
-
-  let lastTouchStartMs = 0;
-  let currentIndex = panels.length >= 2 ? 1 : 0;
-
   function isPlayMode() {
-    return gameContainer && gameContainer.classList.contains("expanded");
+    return Boolean(gameContainer && gameContainer.classList.contains("expanded"));
   }
 
-  window.addEventListener("popstate", () => {
-    if (!isPlayMode()) return;
+  function clearHolds() {
+    holdLeft = false;
+    holdRight = false;
+  }
 
-    gameContainer.classList.remove("expanded");
-    hideOverlay();
-    pauseAllGames();
-    drawAllOnce();
-    updatePlayButton();
+  function showMessageOverlay(messageHtml) {
+    if (!overlay || !overlayText) return;
+    overlay.hidden = false;
+    overlay.setAttribute("aria-hidden", "false");
+    overlayText.innerHTML = messageHtml;
+    overlay.style.visibility = "visible";
+  }
 
-    requestAnimationFrame(() => {
-      centerActive(false);
-      positionPlayButton();
+  function hideOverlay() {
+    if (!overlay) return;
+    overlay.style.visibility = "hidden";
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.hidden = true;
+  }
+
+  function showOverlay(score, highScore) {
+    const retry = "Click or tap the game to try again.";
+    showMessageOverlay(
+      `Your score:<br>${Math.floor(score)}<br><br>` +
+      `Highscore:<br>${Math.floor(highScore)}<br><br>` +
+      retry
+    );
+  }
+
+  function showPauseOverlay() {
+    showMessageOverlay("Game Paused.<br><br>Click or tap the game to resume.");
+  }
+
+  function clamp(n, a, b) {
+    return Math.max(a, Math.min(b, n));
+  }
+
+  function updateCarouselArrows() {
+    if (!leftArrow || !rightArrow) return;
+    const atStart = currentIndex <= 0;
+    const atEnd = currentIndex >= panels.length - 1;
+
+    leftArrow.classList.toggle("hidden", atStart);
+    rightArrow.classList.toggle("hidden", atEnd);
+    leftArrow.disabled = atStart;
+    rightArrow.disabled = atEnd;
+    leftArrow.setAttribute("aria-hidden", String(atStart));
+    rightArrow.setAttribute("aria-hidden", String(atEnd));
+  }
+
+  function setActive(index) {
+    currentIndex = clamp(index, 0, panels.length - 1);
+    panels.forEach((panel, panelIndex) => {
+      const isActivePanel = panelIndex === currentIndex;
+      panel.classList.toggle("active", isActivePanel);
+      panel.setAttribute("aria-hidden", String(!isActivePanel));
+      panel.tabIndex = isActivePanel ? 0 : -1;
     });
-  });
+    updateCarouselArrows();
+  }
 
   function positionPlayButton() {
-    const btn = document.getElementById("game-play");
-    const container = document.getElementById("game-container");
-    const activePanel = document.querySelector(".game-panel.active");
-    if (!btn || !container || !activePanel) return;
-
-    const c = container.getBoundingClientRect();
-    const p = activePanel.getBoundingClientRect();
-
-    const midY = (p.bottom + c.bottom) / 2;
-    const topInside = midY - c.top - btn.offsetHeight / 2;
-
-    const padding = 10;
-    const maxTop = container.clientHeight - btn.offsetHeight - padding;
-    const clampedTop = Math.max(padding, Math.min(maxTop, topInside));
-
-    btn.style.top = `${clampedTop}px`;
+    if (!playBtn) return;
+    playBtn.style.removeProperty("top");
   }
 
   function getActiveCanvas() {
     const activePanel = document.querySelector(".game-panel.active");
-    if (!activePanel) return null;
-    return activePanel.querySelector("canvas");
+    return activePanel ? activePanel.querySelector("canvas") : null;
   }
 
   function getCanvasPosFromClient(clientX, clientY) {
@@ -251,54 +382,36 @@ document.addEventListener("DOMContentLoaded", () => {
     if (
       clientX < rect.left || clientX > rect.right ||
       clientY < rect.top || clientY > rect.bottom
-    ) return null;
+    ) {
+      return null;
+    }
 
     const x = (clientX - rect.left) * (canvas.width / rect.width);
     const y = (clientY - rect.top) * (canvas.height / rect.height);
-
     return { x, y, canvas };
   }
 
-  function clearHolds() {
-    holdLeft = false;
-    holdRight = false;
+  function updateFloatingTitle() {
+    if (!floatingTitle || !gameContainer) return;
+
+    const rect = gameContainer.getBoundingClientRect();
+    const fadeEnd = Math.max(1, rect.height * 0.5);
+    const t = clamp(window.scrollY / fadeEnd, 0, 1);
+
+    floatingTitle.style.setProperty("--title-opacity", String(1 - t));
+    floatingTitle.style.setProperty("--title-shift-y", `${60 * t}px`);
   }
 
-  function hideOverlay() {
-    if (overlay) overlay.style.visibility = "hidden";
+  function requestTitleUpdate() {
+    if (titleRaf) return;
+    titleRaf = requestAnimationFrame(() => {
+      titleRaf = 0;
+      updateFloatingTitle();
+    });
   }
-
-  function showOverlay(score, highScore) {
-    if (!overlay || !overlayText) return;
-    const retry = isTouch ? "Press anywhere to try again." : "Press any key to try again.";
-    overlayText.innerHTML =
-      `Your score:<br>${Math.floor(score)}<br><br>` +
-      `Highscore:<br>${Math.floor(highScore)}<br><br>` +
-      retry;
-    overlay.style.visibility = "visible";
-  }
-
-  function clamp(n, a, b) {
-    return Math.max(a, Math.min(b, n));
-  }
-
-  function updateCarouselArrows() {
-    if (!leftArrow || !rightArrow) return;
-    leftArrow.classList.toggle("hidden", currentIndex <= 0);
-    rightArrow.classList.toggle("hidden", currentIndex >= panels.length - 1);
-  }
-
-  function setActive(index) {
-    currentIndex = clamp(index, 0, panels.length - 1);
-    panels.forEach((p) => p.classList.remove("active"));
-    if (panels[currentIndex]) panels[currentIndex].classList.add("active");
-    updateCarouselArrows();
-  }
-
 
   function moveCarousel(dir) {
-    if (isPlayMode()) return;
-    if (!panels.length) return;
+    if (isPlayMode() || !panels.length) return;
 
     const next = clamp(currentIndex + dir, 0, panels.length - 1);
     if (next === currentIndex) return;
@@ -307,30 +420,21 @@ document.addEventListener("DOMContentLoaded", () => {
     centerActive(true);
     drawAllOnce();
     positionPlayButton();
-    updateCarouselArrows();
-  }
-
-  if (leftArrow) {
-    leftArrow.addEventListener("click", (e) => {
-      e.preventDefault();
-      moveCarousel(-1);
-    });
-  }
-  if (rightArrow) {
-    rightArrow.addEventListener("click", (e) => {
-      e.preventDefault();
-      moveCarousel(1);
-    });
   }
 
   function getTranslateX() {
     if (!carousel) return 0;
-    const tr = window.getComputedStyle(carousel).transform;
-    if (!tr || tr === "none") return 0;
-    const m = tr.match(/matrix\(([^)]+)\)/);
-    if (!m) return 0;
-    const parts = m[1].split(",").map((s) => Number(s.trim()));
-    return parts.length >= 6 ? parts[4] : 0;
+    const transform = window.getComputedStyle(carousel).transform;
+    if (!transform || transform === "none") return 0;
+
+    const matrixMatch = transform.match(/matrix\(([^)]+)\)/);
+    if (matrixMatch) {
+      const parts = matrixMatch[1].split(",").map((value) => Number(value.trim()));
+      return parts.length >= 6 ? parts[4] : 0;
+    }
+
+    const translateMatch = transform.match(/translateX\((-?\d+(?:\.\d+)?)px\)/);
+    return translateMatch ? Number(translateMatch[1]) : 0;
   }
 
   function setTranslateX(x, animate) {
@@ -341,33 +445,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function centerActive(animate) {
     if (!viewport || !carousel || !panels[currentIndex]) return;
-    const vp = viewport.getBoundingClientRect();
-    const ap = panels[currentIndex].getBoundingClientRect();
-    const vpCenter = vp.left + vp.width / 2;
-    const apCenter = ap.left + ap.width / 2;
-    const delta = vpCenter - apCenter;
-    setTranslateX(getTranslateX() + delta, animate);
+    const viewportRect = viewport.getBoundingClientRect();
+    const activeRect = panels[currentIndex].getBoundingClientRect();
+    const viewportCenter = viewportRect.left + viewportRect.width / 2;
+    const activeCenter = activeRect.left + activeRect.width / 2;
+    setTranslateX(getTranslateX() + (viewportCenter - activeCenter), animate);
   }
-
-  let isDragging = false;
-  let dragStartX = 0;
 
   function snapToNearest() {
     if (!viewport || panels.length === 0) return;
 
-    const vp = viewport.getBoundingClientRect();
-    const vpCenter = vp.left + vp.width / 2;
+    const viewportRect = viewport.getBoundingClientRect();
+    const viewportCenter = viewportRect.left + viewportRect.width / 2;
 
     let bestIdx = currentIndex;
     let bestDist = Infinity;
 
-    panels.forEach((p, idx) => {
-      const r = p.getBoundingClientRect();
-      const c = r.left + r.width / 2;
-      const d = Math.abs(c - vpCenter);
-      if (d < bestDist) {
-        bestDist = d;
-        bestIdx = idx;
+    panels.forEach((panel, index) => {
+      const rect = panel.getBoundingClientRect();
+      const center = rect.left + rect.width / 2;
+      const distance = Math.abs(center - viewportCenter);
+      if (distance < bestDist) {
+        bestDist = distance;
+        bestIdx = index;
       }
     });
 
@@ -377,96 +477,11 @@ document.addEventListener("DOMContentLoaded", () => {
     positionPlayButton();
   }
 
-  if (carousel) {
-    carousel.addEventListener("pointerdown", (e) => {
-      if (isPlayMode()) return;
-      isDragging = true;
-      dragStartX = e.clientX;
-      carousel.setPointerCapture(e.pointerId);
-      carousel.style.transition = "none";
-    });
-
-    carousel.addEventListener("pointermove", (e) => {
-      if (!isDragging) return;
-
-      const dx = e.clientX - dragStartX;
-
-      const isPhone = window.matchMedia("(max-width: 768px)").matches;
-      const dragMultiplier = isPhone ? 1.1 : 0.45;
-
-      const offset = dx * dragMultiplier;
-      setTranslateX(getTranslateX() + offset, false);
-      dragStartX = e.clientX;
-    });
-
-    const endDrag = () => {
-      if (!isDragging) return;
-      isDragging = false;
-      snapToNearest();
-    };
-
-    carousel.addEventListener("pointerup", endDrag);
-    carousel.addEventListener("pointercancel", endDrag);
+  function updateStoredHighScore(key, currentHigh, candidate) {
+    if (candidate <= currentHigh) return currentHigh;
+    writeStoredNumber(key, candidate);
+    return candidate;
   }
-
-  if (playBtn && gameContainer) {
-    playBtn.addEventListener("click", () => {
-      if (!isPlayMode()) {
-        try { history.pushState({ playMode: true }, ""); } catch (e) {}
-        gameContainer.classList.add("expanded");
-        hideOverlay();
-        resumeActiveGame();
-      } else {
-        gameContainer.classList.remove("expanded");
-        hideOverlay();
-        pauseAllGames();
-        drawAllOnce();
-      }
-      updatePlayButton();
-      requestAnimationFrame(() => {
-        centerActive(false);
-        positionPlayButton();
-      });
-    });
-  }
-
-  window.addEventListener("resize", () => requestAnimationFrame(() => centerActive(false)));
-
-  setActive(currentIndex);
-  requestAnimationFrame(() => {
-    centerActive(false);
-    positionPlayButton();
-    requestAnimationFrame(() => centerActive(false));
-  });
-
-  const carCanvas = document.getElementById("gameCanvas");
-  const carCtx = carCanvas ? carCanvas.getContext("2d") : null;
-
-  const invCanvas = document.getElementById("invadersCanvas");
-  const invCtx = invCanvas ? invCanvas.getContext("2d") : null;
-
-  const brickCanvas = document.getElementById("brickCanvas");
-  const brickCtx = brickCanvas ? brickCanvas.getContext("2d") : null;
-
-  if (carCanvas) carCanvas.style.touchAction = "none";
-  if (invCanvas) invCanvas.style.touchAction = "none";
-  if (brickCanvas) brickCanvas.style.touchAction = "none";
-
-  const laneCount = 3;
-  const playerCarArt = "[=]";
-  const obstacleArt = "[#]";
-
-  let carSpeed = 5;
-  const carAcceleration = 0.2;
-  let carScore = 0;
-  let carHighScore = 0;
-  let lastObstacleSpawn = Date.now();
-  let lastCarFrame = null;
-
-  let playerCar = { y: 500, lane: 1 };
-  let obstacles = [];
-  let carPaused = false;
-  let carGameOver = false;
 
   function setCarCanvasSize() {
     if (!carCanvas) return;
@@ -476,6 +491,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function getLaneCenterX(lane, yPos) {
+    if (!carCanvas) return 0;
     const topW = carCanvas.width / 3;
     const bottomW = carCanvas.width - 50;
     const t = yPos / carCanvas.height;
@@ -512,7 +528,7 @@ document.addEventListener("DOMContentLoaded", () => {
     carCtx.stroke();
 
     carCtx.setLineDash([15, 15]);
-    for (let i = 1; i < laneCount; i++) {
+    for (let i = 1; i < laneCount; i += 1) {
       const x1 = (carCanvas.width - topW) / 2 + (topW / laneCount) * i;
       const x2 = (carCanvas.width - bottomW) / 2 + (bottomW / laneCount) * i;
       carCtx.beginPath();
@@ -525,13 +541,13 @@ document.addEventListener("DOMContentLoaded", () => {
     carCtx.fillStyle = "white";
     carCtx.font = "20px Courier";
 
-    const pW = carCtx.measureText(playerCarArt).width;
-    const pX = getLaneCenterX(playerCar.lane, playerCar.y) - pW / 2;
-    carCtx.fillText(playerCarArt, pX, playerCar.y);
+    const playerWidth = carCtx.measureText(playerCarArt).width;
+    const playerX = getLaneCenterX(playerCar.lane, playerCar.y) - playerWidth / 2;
+    carCtx.fillText(playerCarArt, playerX, playerCar.y);
 
-    obstacles.forEach((o) => {
-      const oX = getLaneCenterX(o.lane, o.y) - 10;
-      carCtx.fillText(obstacleArt, oX, o.y);
+    obstacles.forEach((obstacle) => {
+      const obstacleX = getLaneCenterX(obstacle.lane, obstacle.y) - 10;
+      carCtx.fillText(obstacleArt, obstacleX, obstacle.y);
     });
 
     carCtx.fillStyle = "white";
@@ -551,29 +567,36 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateCarGame(deltaTime) {
-    if (!isPlayMode() || currentIndex !== 1) return;
+    if (!carCanvas || !carCtx || !isPlayMode() || currentIndex !== 1) return;
     if (carPaused || carGameOver) return;
 
     carSpeed += carAcceleration * deltaTime;
     carScore += deltaTime * 10;
-    carHighScore = Math.max(carHighScore, carScore);
+    carHighScore = updateStoredHighScore(HIGH_SCORE_KEYS.car, carHighScore, carScore);
 
-    const moveAmt = carSpeed * (deltaTime * 60);
-    obstacles.forEach((o) => (o.y += moveAmt));
-    obstacles = obstacles.filter((o) => o.y < carCanvas.height + 50);
+    const moveAmount = carSpeed * (deltaTime * 60);
+    obstacles.forEach((obstacle) => {
+      obstacle.y += moveAmount;
+    });
+    obstacles = obstacles.filter((obstacle) => obstacle.y < carCanvas.height + 50);
 
-    const pW = carCtx.measureText(playerCarArt).width;
-    const pH = 20;
-    const pX = getLaneCenterX(playerCar.lane, playerCar.y) - pW / 2;
-    const pY = playerCar.y - pH;
+    const playerWidth = carCtx.measureText(playerCarArt).width;
+    const playerHeight = 20;
+    const playerX = getLaneCenterX(playerCar.lane, playerCar.y) - playerWidth / 2;
+    const playerY = playerCar.y - playerHeight;
 
-    for (const o of obstacles) {
-      const oW = 20;
-      const oH = 20;
-      const oX = getLaneCenterX(o.lane, o.y) - oW / 2;
-      const oY = o.y - oH;
+    for (const obstacle of obstacles) {
+      const obstacleWidth = 20;
+      const obstacleHeight = 20;
+      const obstacleX = getLaneCenterX(obstacle.lane, obstacle.y) - obstacleWidth / 2;
+      const obstacleY = obstacle.y - obstacleHeight;
 
-      if (pX < oX + oW && pX + pW > oX && pY < oY + oH && pY + pH > oY) {
+      if (
+        playerX < obstacleX + obstacleWidth &&
+        playerX + playerWidth > obstacleX &&
+        playerY < obstacleY + obstacleHeight &&
+        playerY + playerHeight > obstacleY
+      ) {
         carGameOver = true;
         showOverlay(carScore, carHighScore);
         break;
@@ -587,61 +610,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  window.addEventListener("scroll", () => {
-    if (!isPlayMode()) return;
-
-    if (currentIndex === 1) {
-      if (carGameOver) return;
-      carPaused = true;
-    } else if (currentIndex === 0) {
-      if (inv.gameOver) return;
-      pauseInvaders();
-      return;
-    } else if (currentIndex === 2) {
-      if (brick.gameOver) return;
-      if (brickPaused) return;
-      pauseBrick();
-      return;
-    } else {
-      return;
-    }
-
-    if (overlay && overlayText) {
-      overlayText.innerHTML = "Game Paused.<br><br>Press anywhere to resume.";
-      overlay.style.visibility = "visible";
-    }
-  });
-
   function resumeCarIfPaused() {
     if (!carPaused) return;
     carPaused = false;
     hideOverlay();
   }
 
-  const inv = {
-    shipX: 190,
-    shipY: 540,
-    bullets: [],
-    aliens: [],
-    dir: 1,
-    speedX: 0.9,
-    stepDown: 18,
-    lastShot: 0,
-    shotMs: 220,
-    score: 0,
-    high: 0,
-    gameOver: false
-  };
-
-  let invPaused = false;
-
   function pauseInvaders() {
     if (inv.gameOver) return;
     invPaused = true;
-    if (overlay && overlayText) {
-      overlayText.innerHTML = "Game Paused.<br><br>Press anywhere to resume.";
-      overlay.style.visibility = "visible";
-    }
+    showPauseOverlay();
   }
 
   function resumeInvadersIfPaused() {
@@ -668,9 +646,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const gapX = 32;
     const gapY = 30;
 
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        inv.aliens.push({ x: startX + c * gapX, y: startY + r * gapY, alive: true });
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        inv.aliens.push({ x: startX + col * gapX, y: startY + row * gapY, alive: true });
       }
     }
   }
@@ -683,6 +661,7 @@ document.addEventListener("DOMContentLoaded", () => {
     inv.speedX = 1.2;
     inv.score = 0;
     inv.gameOver = false;
+    invPaused = false;
     hideOverlay();
     spawnInvaderWave();
   }
@@ -710,20 +689,20 @@ document.addEventListener("DOMContentLoaded", () => {
     invCtx.fillText("/^\\", inv.shipX - 12, inv.shipY);
 
     invCtx.font = "20px Courier";
-    inv.aliens.forEach((a) => {
-      if (!a.alive) return;
-      invCtx.fillText("W", a.x, a.y);
+    inv.aliens.forEach((alien) => {
+      if (!alien.alive) return;
+      invCtx.fillText("W", alien.x, alien.y);
     });
 
     invCtx.font = "18px Courier";
-    inv.bullets.forEach((b) => invCtx.fillText("|", b.x, b.y));
+    inv.bullets.forEach((bullet) => {
+      invCtx.fillText("|", bullet.x, bullet.y);
+    });
   }
 
   function updateInvaders(dt) {
-    if (!invCanvas || !invCtx) return;
-    if (!isPlayMode() || currentIndex !== 0) return;
-    if (inv.gameOver) return;
-    if (invPaused) return;
+    if (!invCanvas || !invCtx || !isPlayMode() || currentIndex !== 0) return;
+    if (inv.gameOver || invPaused) return;
 
     const shipSpeed = 380;
     if (holdLeft) inv.shipX -= shipSpeed * dt;
@@ -737,71 +716,57 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const bulletSpeed = 650;
-    inv.bullets.forEach((b) => (b.y -= bulletSpeed * dt));
-    inv.bullets = inv.bullets.filter((b) => b.y > -20 && !b.dead);
+    inv.bullets.forEach((bullet) => {
+      bullet.y -= bulletSpeed * dt;
+    });
+    inv.bullets = inv.bullets.filter((bullet) => bullet.y > -20 && !bullet.dead);
 
     let hitEdge = false;
-    inv.aliens.forEach((a) => {
-      if (!a.alive) return;
+    inv.aliens.forEach((alien) => {
+      if (!alien.alive) return;
       const alienSpeed = inv.speedX * 90;
-      a.x += alienSpeed * dt * inv.dir;
-      if (a.x > 380 || a.x < 20) hitEdge = true;
+      alien.x += alienSpeed * dt * inv.dir;
+      if (alien.x > 380 || alien.x < 20) hitEdge = true;
     });
 
     if (hitEdge) {
       inv.dir *= -1;
-      inv.aliens.forEach((a) => {
-        if (!a.alive) return;
-        a.x = clamp(a.x, 20, 380);
-        a.y += inv.stepDown;
-        if (a.y > inv.shipY - 40) inv.gameOver = true;
+      inv.aliens.forEach((alien) => {
+        if (!alien.alive) return;
+        alien.x = clamp(alien.x, 20, 380);
+        alien.y += inv.stepDown;
+        if (alien.y > inv.shipY - 40) inv.gameOver = true;
       });
     }
 
-    inv.bullets.forEach((b) => {
-      inv.aliens.forEach((a) => {
-        if (!a.alive || b.dead) return;
-        const dx = Math.abs(b.x - a.x);
-        const dy = Math.abs(b.y - a.y);
+    inv.bullets.forEach((bullet) => {
+      inv.aliens.forEach((alien) => {
+        if (!alien.alive || bullet.dead) return;
+        const dx = Math.abs(bullet.x - alien.x);
+        const dy = Math.abs(bullet.y - alien.y);
         if (dx < 12 && dy < 12) {
-          a.alive = false;
-          b.dead = true;
+          alien.alive = false;
+          bullet.dead = true;
           inv.score += 10;
+          inv.high = updateStoredHighScore(HIGH_SCORE_KEYS.invaders, inv.high, inv.score);
         }
       });
     });
 
-    if (!inv.aliens.some((a) => a.alive)) {
+    if (!inv.aliens.some((alien) => alien.alive)) {
       nextInvaderWave();
     }
 
     if (inv.gameOver) {
-      inv.high = Math.max(inv.high, inv.score);
+      inv.high = updateStoredHighScore(HIGH_SCORE_KEYS.invaders, inv.high, inv.score);
       showOverlay(inv.score, inv.high);
     }
   }
 
-  const brick = {
-    score: 0,
-    high: 0,
-    gameOver: false,
-    paddleX: 156,
-    ballX: 200,
-    ballY: 360,
-    ballDX: 2.6,
-    ballDY: -2.8,
-    bricks: []
-  };
-
-  let brickPaused = false;
-
   function pauseBrick() {
     if (brick.gameOver) return;
     brickPaused = true;
-    if (overlay && overlayText) {
-      overlayText.innerHTML = "Game Paused.<br><br>Press anywhere to resume.";
-      overlay.style.visibility = "visible";
-    }
+    showPauseOverlay();
   }
 
   function resumeBrickIfPaused() {
@@ -822,6 +787,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     brick.score = 0;
     brick.gameOver = false;
+    brickPaused = false;
     brick.paddleX = 156;
     brick.ballX = 200;
     brick.ballY = 360;
@@ -829,8 +795,8 @@ document.addEventListener("DOMContentLoaded", () => {
     brick.ballDY = -2.8;
 
     brick.bricks = [];
-    for (let row = 0; row < 5; row++) {
-      for (let col = 0; col < 9; col++) {
+    for (let row = 0; row < 5; row += 1) {
+      for (let col = 0; col < 9; col += 1) {
         brick.bricks.push({ x: 28 + col * 40, y: 90 + row * 24, alive: true });
       }
     }
@@ -854,16 +820,14 @@ document.addEventListener("DOMContentLoaded", () => {
     brickCtx.font = "20px Courier";
     brickCtx.fillText("[=====]", brick.paddleX, 560);
     brickCtx.fillText("O", brick.ballX, brick.ballY);
-    brick.bricks.forEach((b) => {
-      if (b.alive) brickCtx.fillText("[#]", b.x, b.y);
+    brick.bricks.forEach((block) => {
+      if (block.alive) brickCtx.fillText("[#]", block.x, block.y);
     });
   }
 
   function updateBrick(dt) {
-    if (!brickCanvas || !brickCtx) return;
-    if (!isPlayMode() || currentIndex !== 2) return;
-    if (brick.gameOver) return;
-    if (brickPaused) return;
+    if (!brickCanvas || !brickCtx || !isPlayMode() || currentIndex !== 2) return;
+    if (brick.gameOver || brickPaused) return;
 
     const paddleSpeed = 540;
     if (holdLeft) brick.paddleX -= paddleSpeed * dt;
@@ -887,27 +851,28 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    for (const b of brick.bricks) {
-      if (!b.alive) continue;
-      const dx = Math.abs(brick.ballX - (b.x + 10));
-      const dy = Math.abs(brick.ballY - (b.y - 8));
+    for (const block of brick.bricks) {
+      if (!block.alive) continue;
+      const dx = Math.abs(brick.ballX - (block.x + 10));
+      const dy = Math.abs(brick.ballY - (block.y - 8));
       if (dx < 16 && dy < 16) {
-        b.alive = false;
+        block.alive = false;
         brick.ballDY *= -1;
         brick.score += 10;
+        brick.high = updateStoredHighScore(HIGH_SCORE_KEYS.brick, brick.high, brick.score);
         break;
       }
     }
 
-    if (!brick.bricks.some((b) => b.alive)) {
+    if (!brick.bricks.some((block) => block.alive)) {
       brick.gameOver = true;
-      brick.high = Math.max(brick.high, brick.score);
+      brick.high = updateStoredHighScore(HIGH_SCORE_KEYS.brick, brick.high, brick.score);
       showOverlay(brick.score, brick.high);
     }
 
     if (brick.ballY >= 592) {
       brick.gameOver = true;
-      brick.high = Math.max(brick.high, brick.score);
+      brick.high = updateStoredHighScore(HIGH_SCORE_KEYS.brick, brick.high, brick.score);
       showOverlay(brick.score, brick.high);
     }
   }
@@ -929,7 +894,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (currentIndex === 1 && !carGameOver) {
       if (carPaused) resumeCarIfPaused();
-      const mid = carCanvas ? (carCanvas.width / 2) : 200;
+      const mid = carCanvas ? carCanvas.width / 2 : 200;
 
       if (x < mid) {
         playerCar.lane = Math.max(0, playerCar.lane - 1);
@@ -947,84 +912,11 @@ document.addEventListener("DOMContentLoaded", () => {
     clearHolds();
   }
 
-  document.addEventListener("pointerdown", (e) => {
-    if (!isPlayMode()) return;
-
-    if (e.pointerType !== "touch" && Date.now() - lastTouchStartMs < 500) return;
-    if (e.pointerType === "touch") lastTouchStartMs = Date.now();
-
-    const pos = getCanvasPosFromClient(e.clientX, e.clientY);
-    if (!pos) return;
-
-    if (currentIndex === 1 && carGameOver) { resetCarGame(); e.preventDefault(); return; }
-    if (currentIndex === 0 && inv.gameOver) { resetInvadersGame(); e.preventDefault(); return; }
-    if (currentIndex === 2 && brick.gameOver) { resetBrickGame(); e.preventDefault(); return; }
-    if (currentIndex === 1 && carPaused && !carGameOver) resumeCarIfPaused();
-
-    try { pos.canvas.setPointerCapture(e.pointerId); } catch (err) {}
-
-    handlePressAtClient(e.clientX, e.clientY);
-    e.preventDefault();
-  }, { passive: false });
-
-  document.addEventListener("pointerup", handleReleasePress, { passive: true });
-  document.addEventListener("pointercancel", handleReleasePress, { passive: true });
-  document.addEventListener("pointerleave", handleReleasePress, { passive: true });
-
-  document.addEventListener("keydown", (e) => {
-    if (!isPlayMode()) return;
-
-    if (currentIndex === 0 && invPaused && !inv.gameOver) {
-      resumeInvadersIfPaused();
-      return;
-    }
-    if (currentIndex === 2 && brickPaused && !brick.gameOver) {
-      resumeBrickIfPaused();
-      return;
-    }
-
-    if (currentIndex === 1 && carGameOver) {
-      resetCarGame();
-      return;
-    }
-    if (currentIndex === 0 && inv.gameOver) {
-      resetInvadersGame();
-      return;
-    }
-    if (currentIndex === 2 && brick.gameOver) {
-      resetBrickGame();
-      return;
-    }
-
-    if (currentIndex === 1) {
-      if (carPaused) {
-        resumeCarIfPaused();
-        return;
-      }
-      if (e.key === "ArrowLeft") playerCar.lane = Math.max(0, playerCar.lane - 1);
-      if (e.key === "ArrowRight") playerCar.lane = Math.min(laneCount - 1, playerCar.lane + 1);
-    }
-
-    if (currentIndex === 0) {
-      if (e.key === "ArrowLeft") inv.shipX = Math.max(20, inv.shipX - 10);
-      if (e.key === "ArrowRight") inv.shipX = Math.min(380, inv.shipX + 10);
-    }
-
-    if (currentIndex === 2) {
-      if (e.key === "ArrowLeft") brick.paddleX = Math.max(10, brick.paddleX - 14);
-      if (e.key === "ArrowRight") brick.paddleX = Math.min(310, brick.paddleX + 14);
-    }
-  });
-
-  document.addEventListener("pointermove", (e) => {
-    if (!isPlayMode()) return;
-    if (!holdLeft && !holdRight) return;
-
-    const pos = getCanvasPosFromClient(e.clientX, e.clientY);
-    if (!pos) clearHolds();
-  }, { passive: true });
-
   function pauseAllGames() {
+    clearHolds();
+    if (!carGameOver) carPaused = true;
+    if (!inv.gameOver) invPaused = true;
+    if (!brick.gameOver) brickPaused = true;
   }
 
   function resumeActiveGame() {
@@ -1055,6 +947,241 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(loop);
   }
 
+  if (hamburger && navLinks) {
+    setMenuOpen(false);
+
+    hamburger.addEventListener("click", () => {
+      const nextOpen = hamburger.getAttribute("aria-expanded") !== "true";
+      setMenuOpen(nextOpen);
+    });
+
+    navItems.forEach((item) => {
+      item.addEventListener("click", () => setMenuOpen(false));
+    });
+
+    document.addEventListener("click", (event) => {
+      if (window.innerWidth > 768) return;
+      if (!navLinks.classList.contains("show")) return;
+      if (navLinks.contains(event.target) || hamburger.contains(event.target)) return;
+      setMenuOpen(false);
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    });
+  }
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => loadProjects({ force: true }));
+  }
+
+  setFadeInState();
+  loadProjects({ force: false });
+
+  window.addEventListener("scroll", requestTitleUpdate, { passive: true });
+  window.addEventListener("resize", () => {
+    requestTitleUpdate();
+    requestAnimationFrame(() => {
+      centerActive(false);
+      positionPlayButton();
+    });
+  });
+
+  window.addEventListener("popstate", () => {
+    if (!isPlayMode() || !gameContainer) return;
+
+    gameContainer.classList.remove("expanded");
+    hideOverlay();
+    pauseAllGames();
+    drawAllOnce();
+    updatePlayButton();
+
+    requestAnimationFrame(() => {
+      centerActive(false);
+      positionPlayButton();
+    });
+  });
+
+  window.addEventListener("scroll", () => {
+    if (!isPlayMode()) return;
+
+    if (currentIndex === 1) {
+      if (carGameOver) return;
+      carPaused = true;
+    } else if (currentIndex === 0) {
+      if (inv.gameOver) return;
+      pauseInvaders();
+      return;
+    } else if (currentIndex === 2) {
+      if (brick.gameOver || brickPaused) return;
+      pauseBrick();
+      return;
+    } else {
+      return;
+    }
+
+    showPauseOverlay();
+  });
+
+  if (leftArrow) {
+    leftArrow.addEventListener("click", (event) => {
+      event.preventDefault();
+      moveCarousel(-1);
+    });
+  }
+
+  if (rightArrow) {
+    rightArrow.addEventListener("click", (event) => {
+      event.preventDefault();
+      moveCarousel(1);
+    });
+  }
+
+  if (viewport) {
+    viewport.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        if (playBtn) playBtn.click();
+      }
+    });
+  }
+
+  if (carousel) {
+    carousel.addEventListener("pointerdown", (event) => {
+      if (isPlayMode()) return;
+      isDragging = true;
+      dragMoved = false;
+      dragStartX = event.clientX;
+      pendingPanelIndex = panels.indexOf(event.target.closest(".game-panel"));
+      carousel.setPointerCapture(event.pointerId);
+      carousel.style.transition = "none";
+    });
+
+    carousel.addEventListener("pointermove", (event) => {
+      if (!isDragging) return;
+
+      const dx = event.clientX - dragStartX;
+      if (Math.abs(dx) > 3) dragMoved = true;
+      const isPhone = window.matchMedia("(max-width: 768px)").matches;
+      const dragMultiplier = isPhone ? 1.1 : 0.45;
+
+      setTranslateX(getTranslateX() + dx * dragMultiplier, false);
+      dragStartX = event.clientX;
+    });
+
+    const endDrag = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      if (dragMoved) {
+        suppressPanelClickUntil = Date.now() + 150;
+        snapToNearest();
+      } else if (
+        pendingPanelIndex !== null &&
+        pendingPanelIndex !== -1 &&
+        pendingPanelIndex !== currentIndex &&
+        Date.now() >= suppressPanelClickUntil
+      ) {
+        setActive(pendingPanelIndex);
+        centerActive(true);
+        drawAllOnce();
+        positionPlayButton();
+      }
+      pendingPanelIndex = null;
+    };
+
+    carousel.addEventListener("pointerup", endDrag);
+    carousel.addEventListener("pointercancel", endDrag);
+  }
+
+  panels.forEach((panel, index) => {
+    panel.addEventListener("click", () => {
+      if (isPlayMode()) return;
+      if (Date.now() < suppressPanelClickUntil) return;
+      if (index === currentIndex) return;
+
+      setActive(index);
+      centerActive(true);
+      drawAllOnce();
+      positionPlayButton();
+    });
+  });
+
+  if (playBtn && gameContainer) {
+    playBtn.addEventListener("click", () => {
+      if (!isPlayMode()) {
+        try {
+          history.pushState({ playMode: true }, "");
+        } catch {
+          // ignore
+        }
+
+        gameContainer.classList.add("expanded");
+        hideOverlay();
+        resumeActiveGame();
+      } else {
+        gameContainer.classList.remove("expanded");
+        hideOverlay();
+        pauseAllGames();
+        drawAllOnce();
+      }
+
+      updatePlayButton();
+      requestAnimationFrame(() => {
+        centerActive(false);
+        positionPlayButton();
+      });
+    });
+  }
+
+  document.addEventListener("pointerdown", (event) => {
+    if (!isPlayMode()) return;
+
+    if (event.pointerType !== "touch" && Date.now() - lastTouchStartMs < 500) return;
+    if (event.pointerType === "touch") lastTouchStartMs = Date.now();
+
+    const pos = getCanvasPosFromClient(event.clientX, event.clientY);
+    if (!pos) return;
+
+    if (currentIndex === 1 && carGameOver) {
+      resetCarGame();
+      event.preventDefault();
+      return;
+    }
+    if (currentIndex === 0 && inv.gameOver) {
+      resetInvadersGame();
+      event.preventDefault();
+      return;
+    }
+    if (currentIndex === 2 && brick.gameOver) {
+      resetBrickGame();
+      event.preventDefault();
+      return;
+    }
+    if (currentIndex === 1 && carPaused && !carGameOver) resumeCarIfPaused();
+
+    try {
+      pos.canvas.setPointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+
+    handlePressAtClient(event.clientX, event.clientY);
+    event.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener("pointerup", handleReleasePress, { passive: true });
+  document.addEventListener("pointercancel", handleReleasePress, { passive: true });
+  document.addEventListener("pointerleave", handleReleasePress, { passive: true });
+
+  document.addEventListener("pointermove", (event) => {
+    if (!isPlayMode()) return;
+    if (!holdLeft && !holdRight) return;
+
+    const pos = getCanvasPosFromClient(event.clientX, event.clientY);
+    if (!pos) clearHolds();
+  }, { passive: true });
+
+  setActive(currentIndex);
   updatePlayButton();
   hideOverlay();
   setCarCanvasSize();
@@ -1065,6 +1192,12 @@ document.addEventListener("DOMContentLoaded", () => {
   resetInvadersGame();
   resetBrickGame();
   drawAllOnce();
+
+  requestAnimationFrame(() => {
+    centerActive(false);
+    positionPlayButton();
+    requestAnimationFrame(() => centerActive(false));
+  });
 
   requestAnimationFrame(loop);
   requestTitleUpdate();
