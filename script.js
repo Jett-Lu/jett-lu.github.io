@@ -53,6 +53,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>\"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '\"': "&quot;",
+      "'": "&#39;"
+    }[char]));
+  }
+
+  function sanitizeUrl(value) {
+    try {
+      const url = new URL(String(value));
+      if (url.protocol === "http:" || url.protocol === "https:") return url.toString();
+    } catch {
+      // ignore
+    }
+    return "https://github.com/Jett-Lu";
+  }
+
   async function loadProjects(opts = { force: false }) {
     const container = document.getElementById("project-container");
     if (!container) return;
@@ -68,6 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!allRepos) {
         const res = await fetch("https://api.github.com/users/Jett-Lu/repos");
+        if (!res.ok) throw new Error(`GitHub API request failed with status ${res.status}`);
         allRepos = await res.json();
         if (Array.isArray(allRepos)) writeProjectsCache(allRepos);
       }
@@ -95,14 +116,21 @@ document.addEventListener("DOMContentLoaded", () => {
           langList = "N/A";
         }
 
+        const safeName = escapeHtml(repo.name);
+        const safeDesc = escapeHtml(desc);
+        const safeLangList = escapeHtml(langList);
+        const safeRepoUrl = sanitizeUrl(repo.html_url);
+
         const card = document.createElement("div");
         card.className = "project-card";
         card.innerHTML = `
-          <h3>${repo.name}</h3>
-          <p>${desc}</p>
-          <p><strong>Languages:</strong> ${langList}</p>
-          <a href="${repo.html_url}" target="_blank">View on GitHub →</a>
+          <h3>${safeName}</h3>
+          <p>${safeDesc}</p>
+          <p><strong>Languages:</strong> ${safeLangList}</p>
+          <a href="${safeRepoUrl}" target="_blank">View on GitHub -&gt;</a>
         `;
+        const cardLink = card.querySelector("a");
+        if (cardLink) cardLink.rel = "noopener noreferrer";
         container.appendChild(card);
       }
 
