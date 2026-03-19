@@ -1,7 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
   const PROJECTS_CACHE_KEY = "jl_projects_cache_v1";
   const PROJECTS_CACHE_TTL_MS = 1000 * 60 * 30;
-  const PROJECTS_OFFSET_KEY = "jl_projects_offset_v1";
+  const PROJECTS_QUEUE_KEY = "jl_projects_queue_v1";
+  const SELECTED_GAME_KEY = "jl_selected_game_v1";
   const PROJECT_LIMIT = 3;
   const FEATURED_TOPIC = "featured";
   const GITHUB_REPOS_URL = "https://api.github.com/users/Jett-Lu/repos?per_page=100&sort=updated&type=owner";
@@ -123,6 +124,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function readStoredIndex(key, maxExclusive, fallback) {
+    try {
+      const value = Number(localStorage.getItem(key));
+      if (Number.isInteger(value) && value >= 0 && value < maxExclusive) return value;
+    } catch {
+      // ignore
+    }
+    return fallback;
+  }
+
   function setMenuOpen(open) {
     if (!hamburger || !navLinks) return;
     navLinks.classList.toggle("show", open);
@@ -178,41 +189,65 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function readProjectsOffset() {
+  function shuffleList(values) {
+    const shuffled = [...values];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  function readProjectsQueue() {
     try {
-      const value = Number(sessionStorage.getItem(PROJECTS_OFFSET_KEY));
-      return Number.isInteger(value) && value >= 0 ? value : 0;
+      const raw = sessionStorage.getItem(PROJECTS_QUEUE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.poolKey !== "string" || !Array.isArray(parsed.remainingIds)) return null;
+      return parsed;
     } catch {
-      return 0;
+      return null;
     }
   }
 
-  function writeProjectsOffset(value) {
+  function writeProjectsQueue(poolKey, remainingIds) {
     try {
-      sessionStorage.setItem(PROJECTS_OFFSET_KEY, String(value));
+      sessionStorage.setItem(PROJECTS_QUEUE_KEY, JSON.stringify({ poolKey, remainingIds }));
     } catch {
       // ignore
     }
   }
 
-  function selectProjectWindow(repos, advance) {
+  function selectProjectWindow(repos) {
     if (repos.length === 0) return [];
 
-    const start = repos.length <= PROJECT_LIMIT ? 0 : readProjectsOffset() % repos.length;
-    const selected = [];
+    const repoIds = repos.map((repo) => repo.id);
+    const poolKey = repoIds.join(",");
+    const savedQueue = readProjectsQueue();
+    let remainingIds =
+      savedQueue && savedQueue.poolKey === poolKey
+        ? savedQueue.remainingIds.filter((id) => repoIds.includes(id))
+        : [];
 
-    for (let i = 0; i < Math.min(PROJECT_LIMIT, repos.length); i += 1) {
-      selected.push(repos[(start + i) % repos.length]);
+    const selectedIds = [];
+    const targetSize = Math.min(PROJECT_LIMIT, repos.length);
+
+    while (selectedIds.length < targetSize) {
+      if (!remainingIds.length) {
+        remainingIds = shuffleList(repoIds);
+      }
+
+      const nextId = remainingIds.shift();
+      if (!selectedIds.includes(nextId)) {
+        selectedIds.push(nextId);
+      }
     }
 
-    if (repos.length > PROJECT_LIMIT) {
-      const nextOffset = advance ? (start + PROJECT_LIMIT) % repos.length : start;
-      writeProjectsOffset(nextOffset);
-    } else {
-      writeProjectsOffset(0);
-    }
+    writeProjectsQueue(poolKey, remainingIds);
 
-    return selected;
+    return selectedIds
+      .map((id) => repos.find((repo) => repo.id === id))
+      .filter(Boolean);
   }
 
   function sanitizeUrl(value) {
@@ -298,9 +333,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const repos = allRepos.filter((repo) => repo && !repo.fork);
       const featuredRepos = repos.filter(hasFeaturedTopic).sort(compareRepos);
       const fallbackRepos = repos.filter((repo) => !hasFeaturedTopic(repo)).sort(compareRepos);
-      const orderedRepos = [...featuredRepos, ...fallbackRepos]
-        .filter((repo, index, list) => list.findIndex((candidate) => candidate.id === repo.id) === index)
-      const selected = selectProjectWindow(orderedRepos, opts.force);
+      const repoPool = featuredRepos.length ? featuredRepos : fallbackRepos;
+      const selected = selectProjectWindow(repoPool);
 
       projectContainer.innerHTML = "";
 
@@ -391,6 +425,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setActive(index) {
     currentIndex = clamp(index, 0, panels.length - 1);
+    writeStoredNumber(SELECTED_GAME_KEY, currentIndex);
     panels.forEach((panel, panelIndex) => {
       const isActivePanel = panelIndex === currentIndex;
       panel.classList.toggle("active", isActivePanel);
@@ -1219,6 +1254,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!pos) clearHolds();
   }, { passive: true });
 
+  currentIndex = readStoredIndex(SELECTED_GAME_KEY, panels.length, currentIndex);
   setActive(currentIndex);
   updatePlayButton();
   hideOverlay();
