@@ -2,7 +2,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const PROJECTS_CACHE_KEY = "jl_projects_cache_v1";
   const PROJECTS_CACHE_TTL_MS = 1000 * 60 * 30;
   const PROJECTS_QUEUE_KEY = "jl_projects_queue_v1";
-  const SELECTED_GAME_KEY = "jl_selected_game_v1";
   const PROJECT_LIMIT = 3;
   const FEATURED_TOPIC = "featured";
   const GITHUB_REPOS_URL = "https://api.github.com/users/Jett-Lu/repos?per_page=100&sort=updated&type=owner";
@@ -122,16 +121,6 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch {
       // ignore
     }
-  }
-
-  function readStoredIndex(key, maxExclusive, fallback) {
-    try {
-      const value = Number(localStorage.getItem(key));
-      if (Number.isInteger(value) && value >= 0 && value < maxExclusive) return value;
-    } catch {
-      // ignore
-    }
-    return fallback;
   }
 
   function setMenuOpen(open) {
@@ -425,7 +414,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setActive(index) {
     currentIndex = clamp(index, 0, panels.length - 1);
-    writeStoredNumber(SELECTED_GAME_KEY, currentIndex);
     panels.forEach((panel, panelIndex) => {
       const isActivePanel = panelIndex === currentIndex;
       panel.classList.toggle("active", isActivePanel);
@@ -1254,7 +1242,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!pos) clearHolds();
   }, { passive: true });
 
-  currentIndex = readStoredIndex(SELECTED_GAME_KEY, panels.length, currentIndex);
   setActive(currentIndex);
   updatePlayButton();
   hideOverlay();
