@@ -292,7 +292,7 @@ document.addEventListener("DOMContentLoaded", () => {
     link.href = sanitizeUrl(repo.html_url);
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.textContent = "View on GitHub ->";
+    link.textContent = "View on GitHub →";
 
     card.append(title, description, languages, link);
     return card;
