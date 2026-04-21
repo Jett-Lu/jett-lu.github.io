@@ -230,37 +230,56 @@ body {
   cursor: default;
 }
 
-#game-play {
+#game-controls {
   position: absolute;
   left: 50%;
   top: min(
     calc(50% + (var(--active-panel-height) / 2) + clamp(32px, 5vh, 56px)),
     calc(100% - 72px)
   );
+  display: flex;
+  gap: 12px;
+  justify-content: center;
   transform: translate(-50%, -50%);
+  z-index: 25;
+}
+
+#game-play,
+#game-help {
+  position: static;
+  transform: none;
   padding: 10px 18px;
   background: #000;
   color: #fff;
   border: 2px solid #fff;
   font-weight: bold;
   cursor: pointer;
-  z-index: 25;
 }
 
-#game-container.expanded #game-play {
-  display: block;
+#game-help {
+  display: none;
 }
 
-#game-over {
+#game-container.expanded #game-controls {
+  display: flex;
+}
+
+#game-container.expanded #game-help {
+  display: inline-block;
+}
+
+#game-over,
+#game-help-overlay {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   visibility: hidden;
-  z-index: 10;
+  z-index: 35;
 }
 
-#game-over-box {
+#game-over-box,
+#game-help-box {
   background: #000;
   color: #fff;
   padding: 20px;
@@ -268,6 +287,30 @@ body {
   width: 200px;
   font-size: 20px;
   text-align: center;
+}
+
+#game-help-box {
+  width: min(320px, calc(100vw - 40px));
+}
+
+#game-help-title {
+  font-size: 24px;
+  font-weight: 400;
+  margin-bottom: 18px;
+}
+
+#game-help-text {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+#game-help-text .help-section + .help-section {
+  margin-top: 18px;
+}
+
+#game-help-text .help-label {
+  display: block;
+  margin-bottom: 6px;
 }
 
 .content-box {

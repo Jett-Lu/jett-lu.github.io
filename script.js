@@ -25,10 +25,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const carousel = document.getElementById("game-carousel");
   const panels = Array.from(document.querySelectorAll(".game-panel"));
   const playBtn = document.getElementById("game-play");
+  const helpBtn = document.getElementById("game-help");
   const leftArrow = document.getElementById("carousel-left");
   const rightArrow = document.getElementById("carousel-right");
   const overlay = document.getElementById("game-over");
   const overlayText = document.getElementById("game-over-text");
+  const helpOverlay = document.getElementById("game-help-overlay");
+  const helpTitle = document.getElementById("game-help-title");
+  const helpText = document.getElementById("game-help-text");
   const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
   const carCanvas = document.getElementById("gameCanvas");
@@ -53,6 +57,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let pendingPanelIndex = null;
   let suppressPanelClickUntil = 0;
   let lastCarFrame = null;
+  let helpOpen = false;
+  let helpResumeOnClose = false;
 
   const laneCount = 3;
   const playerCarArt = "[=]";
@@ -135,6 +141,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const expanded = gameContainer.classList.contains("expanded");
     playBtn.textContent = expanded ? "Back" : "Play";
     playBtn.setAttribute("aria-label", expanded ? "Exit selected game" : "Play selected game");
+  }
+
+  function updateHelpButton() {
+    if (!helpBtn) return;
+    helpBtn.textContent = helpOpen ? "Close Help" : "Help";
+    helpBtn.setAttribute("aria-label", helpOpen ? "Close game instructions" : "Show game instructions");
   }
 
   function setFadeInState() {
@@ -382,6 +394,94 @@ document.addEventListener("DOMContentLoaded", () => {
     overlay.hidden = true;
   }
 
+  function hideHelpOverlay() {
+    if (!helpOverlay) return;
+    helpOverlay.style.visibility = "hidden";
+    helpOverlay.setAttribute("aria-hidden", "true");
+    helpOverlay.hidden = true;
+    helpOpen = false;
+    updateHelpButton();
+  }
+
+  function maybeResumeAfterHelp() {
+    if (!helpResumeOnClose) return;
+    helpResumeOnClose = false;
+
+    if (currentIndex === 1 && !carGameOver) {
+      resumeCarIfPaused();
+      return;
+    }
+    if (currentIndex === 0 && !inv.gameOver) {
+      resumeInvadersIfPaused();
+      return;
+    }
+    if (currentIndex === 2 && !brick.gameOver) {
+      resumeBrickIfPaused();
+    }
+  }
+
+  function closeHelpOverlay() {
+    if (!helpOpen) return;
+    hideHelpOverlay();
+    maybeResumeAfterHelp();
+  }
+
+  function getHelpContent() {
+    if (currentIndex === 0) {
+      return {
+        controls: "Left or right arrow keys, or tap the left or right side of the screen.",
+        summary: "Move your ship across the bottom, survive the alien wave, and clear every enemy before they reach you."
+      };
+    }
+
+    if (currentIndex === 1) {
+      return {
+        controls: "Left or right arrow keys, or tap the left or right side of the screen.",
+        summary: "Switch lanes to dodge incoming cars and stay alive as long as possible to keep building your score."
+      };
+    }
+
+    return {
+      controls: "Left or right arrow keys, or tap the left or right side of the screen.",
+      summary: "Move the paddle, keep the ball in play, and break every brick without letting the ball fall past you."
+    };
+  }
+
+  function openHelpOverlay() {
+    if (!helpOverlay || !helpTitle || !helpText) return;
+
+    hideOverlay();
+    helpResumeOnClose = false;
+
+    if (isPlayMode()) {
+      if (currentIndex === 1 && !carPaused && !carGameOver) {
+        carPaused = true;
+        helpResumeOnClose = true;
+      } else if (currentIndex === 0 && !invPaused && !inv.gameOver) {
+        invPaused = true;
+        helpResumeOnClose = true;
+      } else if (currentIndex === 2 && !brickPaused && !brick.gameOver) {
+        brickPaused = true;
+        helpResumeOnClose = true;
+      }
+    }
+
+    const content = getHelpContent();
+    helpTitle.textContent = "How to play";
+    helpText.innerHTML =
+      `<div class="help-section">` +
+      `<span>${content.controls}</span>` +
+      `</div>` +
+      `<div class="help-section">` +
+      `<span>${content.summary}</span>` +
+      `</div>`;
+    helpOverlay.hidden = false;
+    helpOverlay.setAttribute("aria-hidden", "false");
+    helpOverlay.style.visibility = "visible";
+    helpOpen = true;
+    updateHelpButton();
+  }
+
   function showOverlay(score, highScore) {
     const retry = "Click or tap the game to try again.";
     showMessageOverlay(
@@ -420,12 +520,24 @@ document.addEventListener("DOMContentLoaded", () => {
       panel.setAttribute("aria-hidden", String(!isActivePanel));
       panel.tabIndex = isActivePanel ? 0 : -1;
     });
+    if (helpOpen && helpTitle && helpText) {
+      const content = getHelpContent();
+      helpTitle.textContent = "How to play";
+      helpText.innerHTML =
+        `<div class="help-section">` +
+        `<span>${content.controls}</span>` +
+        `</div>` +
+        `<div class="help-section">` +
+        `<span>${content.summary}</span>` +
+        `</div>`;
+    }
     updateCarouselArrows();
   }
 
   function positionPlayButton() {
-    if (!playBtn) return;
-    playBtn.style.removeProperty("top");
+    const controls = document.getElementById("game-controls");
+    if (!controls) return;
+    controls.style.removeProperty("top");
   }
 
   function getActiveCanvas() {
@@ -980,7 +1092,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function handleGameKeyDown(event) {
-    if (!isPlayMode() || isTypingTarget(event.target)) return;
+    if (isTypingTarget(event.target)) return;
+
+    if (helpOpen) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeHelpOverlay();
+      }
+      return;
+    }
+
+    if (!isPlayMode()) return;
 
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
@@ -1039,7 +1161,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function handleGameKeyUp(event) {
-    if (!isPlayMode() || isTypingTarget(event.target)) return;
+    if (!isPlayMode() || isTypingTarget(event.target) || helpOpen) return;
 
     if (event.key === "ArrowLeft") {
       holdLeft = false;
@@ -1128,9 +1250,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     gameContainer.classList.remove("expanded");
     hideOverlay();
+    hideHelpOverlay();
+    helpResumeOnClose = false;
     pauseAllGames();
     drawAllOnce();
     updatePlayButton();
+    updateHelpButton();
 
     requestAnimationFrame(() => {
       centerActive(false);
@@ -1244,6 +1369,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (playBtn && gameContainer) {
     playBtn.addEventListener("click", () => {
+      if (helpOpen) closeHelpOverlay();
+
       if (!isPlayMode()) {
         try {
           history.pushState({ playMode: true }, "");
@@ -1269,7 +1396,26 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  if (helpBtn) {
+    helpBtn.addEventListener("click", () => {
+      if (helpOpen) {
+        closeHelpOverlay();
+        return;
+      }
+
+      openHelpOverlay();
+    });
+  }
+
   document.addEventListener("pointerdown", (event) => {
+    if (helpOpen) {
+      if (helpOverlay && helpOverlay.contains(event.target)) {
+        event.preventDefault();
+        closeHelpOverlay();
+      }
+      return;
+    }
+
     if (!isPlayMode()) return;
 
     if (event.pointerType !== "touch" && Date.now() - lastTouchStartMs < 500) return;
@@ -1321,7 +1467,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setActive(currentIndex);
   updatePlayButton();
+  updateHelpButton();
   hideOverlay();
+  hideHelpOverlay();
   setCarCanvasSize();
   setInvCanvasSize();
   setBrickCanvasSize();

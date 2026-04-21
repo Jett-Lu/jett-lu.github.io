@@ -103,11 +103,21 @@
         &gt;
       </button>
 
-      <button id="game-play" type="button" aria-label="Play selected game">Play</button>
+      <div id="game-controls" aria-label="Game controls">
+        <button id="game-play" type="button" aria-label="Play selected game">Play</button>
+        <button id="game-help" type="button" aria-label="Show game instructions">Help</button>
+      </div>
 
       <div id="game-over" role="dialog" aria-modal="true" aria-hidden="true" hidden>
         <div id="game-over-box">
           <p id="game-over-text" aria-live="polite">Game Over</p>
+        </div>
+      </div>
+
+      <div id="game-help-overlay" role="dialog" aria-modal="true" aria-hidden="true" hidden>
+        <div id="game-help-box">
+          <h2 id="game-help-title">How to Play</h2>
+          <p id="game-help-text" aria-live="polite"></p>
         </div>
       </div>
     </section>
