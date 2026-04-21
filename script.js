@@ -973,6 +973,81 @@ document.addEventListener("DOMContentLoaded", () => {
     clearHolds();
   }
 
+  function isTypingTarget(target) {
+    if (!(target instanceof HTMLElement)) return false;
+    const tag = target.tagName;
+    return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+  }
+
+  function handleGameKeyDown(event) {
+    if (!isPlayMode() || isTypingTarget(event.target)) return;
+
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+    }
+
+    if (currentIndex === 1) {
+      if (carGameOver) {
+        resetCarGame();
+        return;
+      }
+      if (carPaused) {
+        resumeCarIfPaused();
+      }
+      if (event.key === "ArrowLeft") {
+        playerCar.lane = Math.max(0, playerCar.lane - 1);
+      } else if (event.key === "ArrowRight") {
+        playerCar.lane = Math.min(laneCount - 1, playerCar.lane + 1);
+      }
+      return;
+    }
+
+    if (currentIndex === 0) {
+      if (inv.gameOver) {
+        resetInvadersGame();
+        return;
+      }
+      if (invPaused) {
+        resumeInvadersIfPaused();
+      }
+      if (event.key === "ArrowLeft") {
+        holdLeft = true;
+        holdRight = false;
+      } else if (event.key === "ArrowRight") {
+        holdRight = true;
+        holdLeft = false;
+      }
+      return;
+    }
+
+    if (currentIndex === 2) {
+      if (brick.gameOver) {
+        resetBrickGame();
+        return;
+      }
+      if (brickPaused) {
+        resumeBrickIfPaused();
+      }
+      if (event.key === "ArrowLeft") {
+        holdLeft = true;
+        holdRight = false;
+      } else if (event.key === "ArrowRight") {
+        holdRight = true;
+        holdLeft = false;
+      }
+    }
+  }
+
+  function handleGameKeyUp(event) {
+    if (!isPlayMode() || isTypingTarget(event.target)) return;
+
+    if (event.key === "ArrowLeft") {
+      holdLeft = false;
+    } else if (event.key === "ArrowRight") {
+      holdRight = false;
+    }
+  }
+
   function pauseAllGames() {
     clearHolds();
     if (!carGameOver) carPaused = true;
@@ -1233,6 +1308,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("pointerup", handleReleasePress, { passive: true });
   document.addEventListener("pointercancel", handleReleasePress, { passive: true });
   document.addEventListener("pointerleave", handleReleasePress, { passive: true });
+  document.addEventListener("keydown", handleGameKeyDown);
+  document.addEventListener("keyup", handleGameKeyUp);
 
   document.addEventListener("pointermove", (event) => {
     if (!isPlayMode()) return;
