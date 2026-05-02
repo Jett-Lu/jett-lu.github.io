@@ -294,13 +294,13 @@ body {
 }
 
 #game-help-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 400;
   margin-bottom: 18px;
 }
 
 #game-help-text {
-  font-size: 16px;
+  font-size: 20px;
   line-height: 1.5;
 }
 

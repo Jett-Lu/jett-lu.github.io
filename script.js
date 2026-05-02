@@ -429,21 +429,21 @@ document.addEventListener("DOMContentLoaded", () => {
   function getHelpContent() {
     if (currentIndex === 0) {
       return {
-        controls: "Left or right arrow keys, or tap the left or right side of the screen.",
-        summary: "Move your ship across the bottom, survive the alien wave, and clear every enemy before they reach you."
+        controls: "Move: arrow keys or hold screen sides.",
+        summary: "Clear the aliens before they reach you."
       };
     }
 
     if (currentIndex === 1) {
       return {
-        controls: "Left or right arrow keys, or tap the left or right side of the screen.",
-        summary: "Switch lanes to dodge incoming cars and stay alive as long as possible to keep building your score."
+        controls: "Move: arrow keys or tap screen sides.",
+        summary: "Dodge cars and survive as long as possible."
       };
     }
 
     return {
-      controls: "Left or right arrow keys, or tap the left or right side of the screen.",
-      summary: "Move the paddle, keep the ball in play, and break every brick without letting the ball fall past you."
+      controls: "Move: arrow keys or hold screen sides.",
+      summary: "Break all bricks without dropping the ball."
     };
   }
 
