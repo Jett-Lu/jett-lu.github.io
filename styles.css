@@ -257,7 +257,7 @@ body {
 }
 
 #game-help {
-  display: none;
+  display: inline-block;
 }
 
 #game-container.expanded #game-controls {
@@ -265,7 +265,7 @@ body {
 }
 
 #game-container.expanded #game-help {
-  display: inline-block;
+  display: none;
 }
 
 #game-over,
