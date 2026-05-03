@@ -33,6 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const helpOverlay = document.getElementById("game-help-overlay");
   const helpTitle = document.getElementById("game-help-title");
   const helpText = document.getElementById("game-help-text");
+  const helpCloseBtn = document.getElementById("game-help-close");
   const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
   const carCanvas = document.getElementById("gameCanvas");
@@ -58,7 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
   let suppressPanelClickUntil = 0;
   let lastCarFrame = null;
   let helpOpen = false;
-  let helpResumeOnClose = false;
 
   const laneCount = 3;
   const playerCarArt = "[=]";
@@ -403,68 +403,37 @@ document.addEventListener("DOMContentLoaded", () => {
     updateHelpButton();
   }
 
-  function maybeResumeAfterHelp() {
-    if (!helpResumeOnClose) return;
-    helpResumeOnClose = false;
-
-    if (currentIndex === 1 && !carGameOver) {
-      resumeCarIfPaused();
-      return;
-    }
-    if (currentIndex === 0 && !inv.gameOver) {
-      resumeInvadersIfPaused();
-      return;
-    }
-    if (currentIndex === 2 && !brick.gameOver) {
-      resumeBrickIfPaused();
-    }
-  }
-
   function closeHelpOverlay() {
     if (!helpOpen) return;
     hideHelpOverlay();
-    maybeResumeAfterHelp();
   }
 
   function getHelpContent() {
     if (currentIndex === 0) {
       return {
-        controls: "Move: arrow keys or hold screen sides.",
+        controls: "Use arrow keys or hold left/right to move.",
         summary: "Clear the aliens before they reach you."
       };
     }
 
     if (currentIndex === 1) {
       return {
-        controls: "Move: arrow keys or tap screen sides.",
+        controls: "Use arrow keys or tap left/right to move.",
         summary: "Dodge cars and survive as long as possible."
       };
     }
 
     return {
-      controls: "Move: arrow keys or hold screen sides.",
+      controls: "Use arrow keys or hold left/right to move.",
       summary: "Break all bricks without dropping the ball."
     };
   }
 
   function openHelpOverlay() {
     if (!helpOverlay || !helpTitle || !helpText) return;
+    if (isPlayMode()) return;
 
     hideOverlay();
-    helpResumeOnClose = false;
-
-    if (isPlayMode()) {
-      if (currentIndex === 1 && !carPaused && !carGameOver) {
-        carPaused = true;
-        helpResumeOnClose = true;
-      } else if (currentIndex === 0 && !invPaused && !inv.gameOver) {
-        invPaused = true;
-        helpResumeOnClose = true;
-      } else if (currentIndex === 2 && !brickPaused && !brick.gameOver) {
-        brickPaused = true;
-        helpResumeOnClose = true;
-      }
-    }
 
     const content = getHelpContent();
     helpTitle.textContent = "How to play";
@@ -685,7 +654,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function drawCarGame() {
     if (!carCanvas || !carCtx) return;
 
-    setCarCanvasSize();
     carCtx.clearRect(0, 0, carCanvas.width, carCanvas.height);
 
     const topW = carCanvas.width / 3;
@@ -730,6 +698,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function resetCarGame() {
+    setCarCanvasSize();
     obstacles = [];
     carSpeed = 5;
     carScore = 0;
@@ -847,7 +816,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function drawInvaders() {
     if (!invCanvas || !invCtx) return;
-    setInvCanvasSize();
 
     invCtx.clearRect(0, 0, invCanvas.width, invCanvas.height);
     invCtx.strokeStyle = "white";
@@ -979,7 +947,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function drawBrick() {
     if (!brickCanvas || !brickCtx) return;
-    setBrickCanvasSize();
 
     brickCtx.clearRect(0, 0, brickCanvas.width, brickCanvas.height);
     brickCtx.strokeStyle = "white";
@@ -1251,7 +1218,6 @@ document.addEventListener("DOMContentLoaded", () => {
     gameContainer.classList.remove("expanded");
     hideOverlay();
     hideHelpOverlay();
-    helpResumeOnClose = false;
     pauseAllGames();
     drawAllOnce();
     updatePlayButton();
@@ -1407,9 +1373,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  if (helpCloseBtn) {
+    helpCloseBtn.addEventListener("click", closeHelpOverlay);
+  }
+
   document.addEventListener("pointerdown", (event) => {
     if (helpOpen) {
-      if (helpOverlay && helpOverlay.contains(event.target)) {
+      if (helpOverlay && event.target === helpOverlay) {
         event.preventDefault();
         closeHelpOverlay();
       }

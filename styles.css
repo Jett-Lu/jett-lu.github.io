@@ -254,6 +254,13 @@ body {
   border: 2px solid #fff;
   font-weight: bold;
   cursor: pointer;
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+#game-play:hover,
+#game-help:hover {
+  background: #fff;
+  color: #000;
 }
 
 #game-help {
@@ -290,7 +297,30 @@ body {
 }
 
 #game-help-box {
+  position: relative;
   width: min(320px, calc(100vw - 40px));
+  padding: 28px 20px 22px;
+}
+
+#game-help-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: #000;
+  color: #fff;
+  border: 2px solid #fff;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+#game-help-close:hover {
+  background: #fff;
+  color: #000;
 }
 
 #game-help-title {
@@ -327,6 +357,11 @@ body {
 .content-box:hover {
   border-color: #000;
   border-width: 2px;
+}
+
+#about p {
+  max-width: 850px;
+  margin: 1em auto;
 }
 
 .project-grid {
@@ -383,10 +418,12 @@ body {
   border: 2px solid #000;
   font-weight: bold;
   cursor: pointer;
+  transition: background-color 220ms ease, color 220ms ease;
 }
 
 #refresh-projects:hover {
-  border-color: #000;
+  background: #000;
+  color: #fff;
 }
 
 #contact-icons {
@@ -437,7 +474,9 @@ button:focus-visible,
 }
 
 .carousel-arrow:focus-visible,
-#game-play:focus-visible {
+#game-play:focus-visible,
+#game-help:focus-visible,
+#game-help-close:focus-visible {
   outline-color: #fff;
 }
 
