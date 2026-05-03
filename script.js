@@ -33,7 +33,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const helpOverlay = document.getElementById("game-help-overlay");
   const helpTitle = document.getElementById("game-help-title");
   const helpText = document.getElementById("game-help-text");
-  const helpCloseBtn = document.getElementById("game-help-close");
   const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
   const carCanvas = document.getElementById("gameCanvas");
@@ -406,6 +405,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function closeHelpOverlay() {
     if (!helpOpen) return;
     hideHelpOverlay();
+    if (helpBtn) helpBtn.focus();
   }
 
   function getHelpContent() {
@@ -443,12 +443,16 @@ document.addEventListener("DOMContentLoaded", () => {
       `</div>` +
       `<div class="help-section">` +
       `<span>${content.summary}</span>` +
+      `</div>` +
+      `<div class="help-section help-dismiss">` +
+      `<span>Click or tap the game to resume.</span>` +
       `</div>`;
     helpOverlay.hidden = false;
     helpOverlay.setAttribute("aria-hidden", "false");
     helpOverlay.style.visibility = "visible";
     helpOpen = true;
     updateHelpButton();
+    if (helpOverlay) helpOverlay.focus();
   }
 
   function showOverlay(score, highScore) {
@@ -498,6 +502,9 @@ document.addEventListener("DOMContentLoaded", () => {
         `</div>` +
         `<div class="help-section">` +
         `<span>${content.summary}</span>` +
+        `</div>` +
+        `<div class="help-section help-dismiss">` +
+        `<span>Click or tap the game to resume.</span>` +
         `</div>`;
     }
     updateCarouselArrows();
@@ -553,7 +560,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function moveCarousel(dir) {
-    if (isPlayMode() || !panels.length) return;
+    if (helpOpen || isPlayMode() || !panels.length) return;
 
     const next = clamp(currentIndex + dir, 0, panels.length - 1);
     if (next === currentIndex) return;
@@ -699,6 +706,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function resetCarGame() {
     setCarCanvasSize();
+    playerCar.lane = 1;
     obstacles = [];
     carSpeed = 5;
     carScore = 0;
@@ -862,19 +870,25 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     inv.bullets = inv.bullets.filter((bullet) => bullet.y > -20 && !bullet.dead);
 
-    let hitEdge = false;
+    let leftMost = Infinity;
+    let rightMost = -Infinity;
     inv.aliens.forEach((alien) => {
       if (!alien.alive) return;
       const alienSpeed = inv.speedX * 90;
       alien.x += alienSpeed * dt * inv.dir;
-      if (alien.x > 380 || alien.x < 20) hitEdge = true;
+      leftMost = Math.min(leftMost, alien.x);
+      rightMost = Math.max(rightMost, alien.x);
     });
 
-    if (hitEdge) {
+    const leftOverflow = Math.min(0, leftMost - 20);
+    const rightOverflow = Math.max(0, rightMost - 380);
+    const edgeCorrection = leftOverflow ? -leftOverflow : -rightOverflow;
+
+    if (edgeCorrection) {
       inv.dir *= -1;
       inv.aliens.forEach((alien) => {
         if (!alien.alive) return;
-        alien.x = clamp(alien.x, 20, 380);
+        alien.x += edgeCorrection;
         alien.y += inv.stepDown;
         if (alien.y > inv.shipY - 40) inv.gameOver = true;
       });
@@ -1266,6 +1280,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (viewport) {
     viewport.addEventListener("keydown", (event) => {
+      if (helpOpen) return;
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         if (playBtn) playBtn.click();
@@ -1275,6 +1290,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (carousel) {
     carousel.addEventListener("pointerdown", (event) => {
+      if (helpOpen) return;
       if (isPlayMode()) return;
       isDragging = true;
       dragMoved = false;
@@ -1322,6 +1338,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   panels.forEach((panel, index) => {
     panel.addEventListener("click", () => {
+      if (helpOpen) return;
       if (isPlayMode()) return;
       if (Date.now() < suppressPanelClickUntil) return;
       if (index === currentIndex) return;
@@ -1373,13 +1390,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  if (helpCloseBtn) {
-    helpCloseBtn.addEventListener("click", closeHelpOverlay);
-  }
-
   document.addEventListener("pointerdown", (event) => {
     if (helpOpen) {
-      if (helpOverlay && event.target === helpOverlay) {
+      if (helpOverlay && helpOverlay.contains(event.target)) {
         event.preventDefault();
         closeHelpOverlay();
       }

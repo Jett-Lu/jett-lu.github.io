@@ -275,12 +275,21 @@ body {
   display: none;
 }
 
-#game-over,
-#game-help-overlay {
+#game-over {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  visibility: hidden;
+  z-index: 35;
+}
+
+#game-help-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   visibility: hidden;
   z-index: 35;
 }
@@ -299,28 +308,7 @@ body {
 #game-help-box {
   position: relative;
   width: min(320px, calc(100vw - 40px));
-  padding: 28px 20px 22px;
-}
-
-#game-help-close {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  background: #000;
-  color: #fff;
-  border: 2px solid #fff;
-  font-weight: bold;
-  line-height: 1;
   cursor: pointer;
-  transition: background-color 220ms ease, color 220ms ease;
-}
-
-#game-help-close:hover {
-  background: #fff;
-  color: #000;
 }
 
 #game-help-title {
@@ -475,8 +463,7 @@ button:focus-visible,
 
 .carousel-arrow:focus-visible,
 #game-play:focus-visible,
-#game-help:focus-visible,
-#game-help-close:focus-visible {
+#game-help:focus-visible {
   outline-color: #fff;
 }
 
