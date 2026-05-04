@@ -180,6 +180,7 @@ body {
   user-select: none;
   touch-action: pan-y;
   will-change: transform;
+  transform: translateZ(0);
 }
 
 .game-panel {
@@ -194,10 +195,13 @@ body {
   transform: scale(0.78);
   opacity: 0.55;
   transition:
+    width 220ms ease,
     transform 220ms ease,
     opacity 220ms ease;
   cursor: pointer;
   will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform-origin: center;
 }
 
 .game-panel:active {
@@ -230,12 +234,17 @@ body {
 }
 
 .game-panel.distance-far {
-  display: none;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.44);
 }
 
 @media (max-width: 1800px) {
   .game-panel.distance-2 {
-    display: none;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
   }
 }
 

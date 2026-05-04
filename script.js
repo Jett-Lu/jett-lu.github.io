@@ -66,6 +66,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let suppressPanelClickUntil = 0;
   let lastCarFrame = null;
   let helpOpen = false;
+  let carouselAnimating = false;
+  let carouselAnimationTimer = 0;
 
   const laneCount = 3;
   const playerCarArt = "[=]";
@@ -415,12 +417,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (helpOpen || isPlayMode() || !panels.length) return;
 
     const next = clamp(currentIndex + dir, 0, panels.length - 1);
-    if (next === currentIndex) return;
-
-    setActive(next);
-    centerActive(true);
-    drawAllOnce();
-    positionPlayButton();
+    selectCarouselIndex(next, true);
   }
 
   function getTranslateX() {
@@ -438,18 +435,52 @@ document.addEventListener("DOMContentLoaded", () => {
     return translateMatch ? Number(translateMatch[1]) : 0;
   }
 
-  function setTranslateX(x, animate) {
+  function setTranslateX(x, animate, duration = 220) {
     if (!carousel) return;
-    carousel.style.transition = animate ? "transform 220ms ease" : "none";
+    carousel.style.transition = animate ? `transform ${duration}ms ease` : "none";
     carousel.style.transform = `translateX(${x}px)`;
   }
 
-  function centerActive(animate) {
+  function centerActive(animate, duration = 220) {
     if (!viewport || !carousel || !panels[currentIndex]) return;
     const activePanel = panels[currentIndex];
     const activeCenter = activePanel.offsetLeft + activePanel.offsetWidth / 2;
     const carouselCenter = carousel.offsetWidth / 2;
-    setTranslateX(carouselCenter - activeCenter, animate);
+    setTranslateX(carouselCenter - activeCenter, animate, duration);
+  }
+
+  function finishCarouselAnimation() {
+    carouselAnimating = false;
+    if (carouselAnimationTimer) {
+      window.clearTimeout(carouselAnimationTimer);
+      carouselAnimationTimer = 0;
+    }
+    drawAllOnce();
+  }
+
+  function waitForCarouselAnimation(duration) {
+    if (!carousel) return;
+    carouselAnimating = true;
+    if (carouselAnimationTimer) window.clearTimeout(carouselAnimationTimer);
+    carouselAnimationTimer = window.setTimeout(finishCarouselAnimation, duration + 80);
+  }
+
+  function selectCarouselIndex(index, animate) {
+    if (carouselAnimating && animate) return;
+    const next = clamp(index, 0, panels.length - 1);
+    if (next === currentIndex) return;
+
+    const distance = Math.abs(next - currentIndex);
+    const duration = animate ? 220 + Math.min(distance - 1, 2) * 110 : 220;
+
+    setActive(next);
+    centerActive(animate, duration);
+    positionPlayButton();
+    if (animate) {
+      waitForCarouselAnimation(duration);
+    } else {
+      drawAllOnce();
+    }
   }
 
   function snapToNearest() {
@@ -463,7 +494,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     panels.forEach((panel, index) => {
       if (panel.classList.contains("distance-far")) return;
-      if (window.getComputedStyle(panel).display === "none") return;
+      const panelStyle = window.getComputedStyle(panel);
+      if (panelStyle.display === "none" || panelStyle.visibility === "hidden") return;
 
       const rect = panel.getBoundingClientRect();
       const center = rect.left + rect.width / 2;
@@ -474,10 +506,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    setActive(bestIdx);
-    centerActive(true);
-    drawAllOnce();
-    positionPlayButton();
+    selectCarouselIndex(bestIdx, true);
   }
 
   function updateStoredHighScore(key, currentHigh, candidate) {
@@ -1625,6 +1654,7 @@ document.addEventListener("DOMContentLoaded", () => {
     carousel.addEventListener("pointerdown", (event) => {
       if (helpOpen) return;
       if (isPlayMode()) return;
+      if (carouselAnimating) return;
       isDragging = true;
       dragMoved = false;
       dragStartX = event.clientX;
@@ -1661,29 +1691,29 @@ document.addEventListener("DOMContentLoaded", () => {
         pendingPanelIndex !== currentIndex &&
         Date.now() >= suppressPanelClickUntil
       ) {
-        setActive(pendingPanelIndex);
-        centerActive(true);
-        drawAllOnce();
-        positionPlayButton();
+        selectCarouselIndex(pendingPanelIndex, true);
       }
       pendingPanelIndex = null;
     };
 
     carousel.addEventListener("pointerup", endDrag);
     carousel.addEventListener("pointercancel", endDrag);
+    carousel.addEventListener("transitionend", (event) => {
+      if (event.target === carousel && event.propertyName === "transform") {
+        finishCarouselAnimation();
+      }
+    });
   }
 
   panels.forEach((panel, index) => {
     panel.addEventListener("click", () => {
       if (helpOpen) return;
       if (isPlayMode()) return;
+      if (carouselAnimating) return;
       if (Date.now() < suppressPanelClickUntil) return;
       if (index === currentIndex) return;
 
-      setActive(index);
-      centerActive(true);
-      drawAllOnce();
-      positionPlayButton();
+      selectCarouselIndex(index, true);
     });
   });
 
