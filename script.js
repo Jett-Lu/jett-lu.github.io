@@ -68,6 +68,14 @@ document.addEventListener("DOMContentLoaded", () => {
   let helpOpen = false;
   let carouselAnimating = false;
   let carouselAnimationTimer = 0;
+  let carouselAnimationRaf = 0;
+  let carouselX = 0;
+  let queuedDragX = 0;
+  let dragRaf = 0;
+  let dragVelocity = 0;
+  let dragLastMoveMs = 0;
+
+  const CAROUSEL_BASE_DURATION = 520;
 
   const laneCount = 3;
   const playerCarArt = "[=]";
@@ -431,30 +439,106 @@ document.addEventListener("DOMContentLoaded", () => {
       return parts.length >= 6 ? parts[4] : 0;
     }
 
+    const matrix3dMatch = transform.match(/matrix3d\(([^)]+)\)/);
+    if (matrix3dMatch) {
+      const parts = matrix3dMatch[1].split(",").map((value) => Number(value.trim()));
+      return parts.length >= 16 ? parts[12] : 0;
+    }
+
     const translateMatch = transform.match(/translateX\((-?\d+(?:\.\d+)?)px\)/);
     return translateMatch ? Number(translateMatch[1]) : 0;
   }
 
-  function setTranslateX(x, animate, duration = 220) {
+  function easeCarousel(t) {
+    return 1 - Math.pow(1 - t, 4);
+  }
+
+  function applyTranslateX(x) {
     if (!carousel) return;
-    carousel.style.transition = animate ? `transform ${duration}ms ease` : "none";
-    carousel.style.transform = `translateX(${x}px)`;
+    carouselX = x;
+    carousel.style.transition = "none";
+    carousel.style.transform = `translate3d(${x.toFixed(2)}px, 0, 0)`;
   }
 
-  function centerActive(animate, duration = 220) {
-    if (!viewport || !carousel || !panels[currentIndex]) return;
-    const activePanel = panels[currentIndex];
-    const activeCenter = activePanel.offsetLeft + activePanel.offsetWidth / 2;
-    const carouselCenter = carousel.offsetWidth / 2;
-    setTranslateX(carouselCenter - activeCenter, animate, duration);
-  }
-
-  function finishCarouselAnimation() {
-    carouselAnimating = false;
+  function stopCarouselAnimation() {
+    if (carouselAnimationRaf) {
+      cancelAnimationFrame(carouselAnimationRaf);
+      carouselAnimationRaf = 0;
+    }
     if (carouselAnimationTimer) {
       window.clearTimeout(carouselAnimationTimer);
       carouselAnimationTimer = 0;
     }
+  }
+
+  function animateTranslateX(targetX, duration = CAROUSEL_BASE_DURATION) {
+    if (!carousel) return;
+    stopCarouselAnimation();
+
+    const startX = getTranslateX();
+    const deltaX = targetX - startX;
+    if (Math.abs(deltaX) < 0.5 || duration <= 0) {
+      applyTranslateX(targetX);
+      finishCarouselAnimation();
+      return;
+    }
+
+    carouselAnimating = true;
+    const startedAt = performance.now();
+
+    const tick = (now) => {
+      const t = clamp((now - startedAt) / duration, 0, 1);
+      applyTranslateX(startX + deltaX * easeCarousel(t));
+
+      if (t < 1) {
+        carouselAnimationRaf = requestAnimationFrame(tick);
+        return;
+      }
+
+      carouselAnimationRaf = 0;
+      applyTranslateX(targetX);
+      finishCarouselAnimation();
+    };
+
+    carouselAnimationRaf = requestAnimationFrame(tick);
+  }
+
+  function setTranslateX(x, animate, duration = CAROUSEL_BASE_DURATION) {
+    if (!carousel) return;
+    if (animate) {
+      animateTranslateX(x, duration);
+      return;
+    }
+    applyTranslateX(x);
+  }
+
+  function getTargetXForIndex(index) {
+    if (!viewport || !carousel || !panels.length) return;
+    const targetIndex = clamp(index, 0, panels.length - 1);
+    const activePanel = panels[targetIndex];
+    const activeCenter = activePanel.offsetLeft + activePanel.offsetWidth / 2;
+    const carouselCenter = carousel.offsetWidth / 2;
+    return carouselCenter - activeCenter;
+  }
+
+  function getActiveTargetX() {
+    return getTargetXForIndex(currentIndex);
+  }
+
+  function centerActive(animate, duration = CAROUSEL_BASE_DURATION) {
+    const targetX = getActiveTargetX();
+    if (typeof targetX !== "number") return;
+    setTranslateX(targetX, animate, duration);
+  }
+
+  function finishCarouselAnimation() {
+    carouselAnimating = false;
+    stopCarouselAnimation();
+    const targetX = getActiveTargetX();
+    if (!isDragging && typeof targetX === "number") {
+      applyTranslateX(targetX);
+    }
+    positionPlayButton();
     drawAllOnce();
   }
 
@@ -462,7 +546,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!carousel) return;
     carouselAnimating = true;
     if (carouselAnimationTimer) window.clearTimeout(carouselAnimationTimer);
-    carouselAnimationTimer = window.setTimeout(finishCarouselAnimation, duration + 80);
+    carouselAnimationTimer = window.setTimeout(finishCarouselAnimation, duration + 120);
   }
 
   function selectCarouselIndex(index, animate) {
@@ -471,7 +555,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (next === currentIndex) return;
 
     const distance = Math.abs(next - currentIndex);
-    const duration = animate ? 220 + Math.min(distance - 1, 2) * 110 : 220;
+    const duration = animate
+      ? CAROUSEL_BASE_DURATION + Math.min(Math.max(distance - 1, 0), 2) * 90
+      : 0;
 
     setActive(next);
     centerActive(animate, duration);
@@ -483,11 +569,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function snapToNearest() {
+  function snapToNearest(momentumPx = 0, maxStep = panels.length) {
     if (!viewport || panels.length === 0) return;
 
     const viewportRect = viewport.getBoundingClientRect();
-    const viewportCenter = viewportRect.left + viewportRect.width / 2;
+    const viewportCenter = viewportRect.left + viewportRect.width / 2 - momentumPx;
 
     let bestIdx = currentIndex;
     let bestDist = Infinity;
@@ -505,6 +591,15 @@ document.addEventListener("DOMContentLoaded", () => {
         bestIdx = index;
       }
     });
+
+    bestIdx = clamp(bestIdx, currentIndex - maxStep, currentIndex + maxStep);
+
+    if (bestIdx === currentIndex) {
+      centerActive(true, CAROUSEL_BASE_DURATION);
+      waitForCarouselAnimation(CAROUSEL_BASE_DURATION);
+      positionPlayButton();
+      return;
+    }
 
     selectCarouselIndex(bestIdx, true);
   }
@@ -1654,10 +1749,14 @@ document.addEventListener("DOMContentLoaded", () => {
     carousel.addEventListener("pointerdown", (event) => {
       if (helpOpen) return;
       if (isPlayMode()) return;
-      if (carouselAnimating) return;
+      if (carouselAnimating) finishCarouselAnimation();
       isDragging = true;
       dragMoved = false;
       dragStartX = event.clientX;
+      dragLastMoveMs = event.timeStamp || performance.now();
+      dragVelocity = 0;
+      carouselX = getTranslateX();
+      queuedDragX = carouselX;
       pendingPanelIndex = panels.indexOf(event.target.closest(".game-panel"));
       try {
         carousel.setPointerCapture(event.pointerId);
@@ -1673,18 +1772,52 @@ document.addEventListener("DOMContentLoaded", () => {
       const dx = event.clientX - dragStartX;
       if (Math.abs(dx) > 3) dragMoved = true;
       const isPhone = window.matchMedia("(max-width: 768px)").matches;
-      const dragMultiplier = isPhone ? 1.1 : 0.45;
+      const dragMultiplier = isPhone ? 1 : 0.72;
+      let adjustedDx = dx * dragMultiplier;
 
-      setTranslateX(getTranslateX() + dx * dragMultiplier, false);
+      if ((currentIndex === 0 && adjustedDx > 0) || (currentIndex === panels.length - 1 && adjustedDx < 0)) {
+        adjustedDx *= 0.28;
+      }
+
+      const now = event.timeStamp || performance.now();
+      const dt = Math.max(8, now - dragLastMoveMs);
+      dragVelocity = adjustedDx / dt;
+      dragLastMoveMs = now;
+      queuedDragX += adjustedDx;
+
+      const prevTargetX = getTargetXForIndex(currentIndex - 1);
+      const nextTargetX = getTargetXForIndex(currentIndex + 1);
+      if (typeof prevTargetX === "number" && typeof nextTargetX === "number") {
+        queuedDragX = clamp(
+          queuedDragX,
+          Math.min(prevTargetX, nextTargetX),
+          Math.max(prevTargetX, nextTargetX)
+        );
+      }
+
       dragStartX = event.clientX;
-    });
+
+      if (!dragRaf) {
+        dragRaf = requestAnimationFrame(() => {
+          dragRaf = 0;
+          setTranslateX(queuedDragX, false);
+        });
+      }
+      event.preventDefault();
+    }, { passive: false });
 
     const endDrag = () => {
       if (!isDragging) return;
       isDragging = false;
+      if (dragRaf) {
+        cancelAnimationFrame(dragRaf);
+        dragRaf = 0;
+        setTranslateX(queuedDragX, false);
+      }
       if (dragMoved) {
         suppressPanelClickUntil = Date.now() + 150;
-        snapToNearest();
+        const momentumPx = clamp(dragVelocity * 260, -180, 180);
+        snapToNearest(momentumPx, 1);
       } else if (
         pendingPanelIndex !== null &&
         pendingPanelIndex !== -1 &&
@@ -1694,6 +1827,7 @@ document.addEventListener("DOMContentLoaded", () => {
         selectCarouselIndex(pendingPanelIndex, true);
       }
       pendingPanelIndex = null;
+      dragVelocity = 0;
     };
 
     carousel.addEventListener("pointerup", endDrag);

@@ -120,6 +120,8 @@ body {
   --game-aspect-h: 3;
   --game-max-w: 400px;
   --game-ui-chrome: 220px;
+  --carousel-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --carousel-duration: 520ms;
   --active-panel-width: min(
     var(--game-max-w),
     92vw,
@@ -195,9 +197,9 @@ body {
   transform: scale(0.78);
   opacity: 0.55;
   transition:
-    width 220ms ease,
-    transform 220ms ease,
-    opacity 220ms ease;
+    width var(--carousel-duration) var(--carousel-ease),
+    transform var(--carousel-duration) var(--carousel-ease),
+    opacity var(--carousel-duration) var(--carousel-ease);
   cursor: pointer;
   will-change: transform, opacity;
   backface-visibility: hidden;
@@ -211,11 +213,8 @@ body {
 .game-panel.active {
   box-sizing: content-box;
   aspect-ratio: var(--game-aspect-w) / var(--game-aspect-h);
-  width: min(
-    var(--game-max-w),
-    92vw,
-    calc((100vh - var(--game-ui-chrome)) * (var(--game-aspect-w) / var(--game-aspect-h)))
-  );
+  width: var(--active-panel-width);
+  transform: scale(1);
   opacity: 1;
   cursor: grab;
 }
