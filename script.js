@@ -1,15 +1,17 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const PROJECTS_CACHE_KEY = "jl_projects_cache_v1";
-  const PROJECTS_CACHE_TTL_MS = 1000 * 60 * 30;
-  const PROJECTS_QUEUE_KEY = "jl_projects_queue_v1";
-  const PROJECT_LIMIT = 3;
-  const FEATURED_TOPIC = "featured";
-  const GITHUB_REPOS_URL = "https://api.github.com/users/Jett-Lu/repos?per_page=100&sort=updated&type=owner";
-  const GITHUB_API_HEADERS = { Accept: "application/vnd.github+json" };
   const HIGH_SCORE_KEYS = {
+    asteroids: "jl_highscore_asteroids",
     car: "jl_highscore_car",
     invaders: "jl_highscore_invaders",
-    brick: "jl_highscore_brick"
+    brick: "jl_highscore_brick",
+    snake: "jl_highscore_snake"
+  };
+  const GAME_INDEX = {
+    asteroids: 0,
+    invaders: 1,
+    car: 2,
+    brick: 3,
+    snake: 4
   };
 
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -19,6 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const fadeEls = document.querySelectorAll(".fade-in-section");
   const projectContainer = document.getElementById("project-container");
   const refreshBtn = document.getElementById("refresh-projects");
+  const loadProjectCards = window.portfolioProjects?.loadProjects;
   const gameContainer = document.getElementById("game-container");
   const floatingTitle = document.getElementById("fixed-name-title");
   const viewport = document.getElementById("game-carousel-viewport");
@@ -31,26 +34,31 @@ document.addEventListener("DOMContentLoaded", () => {
   const overlay = document.getElementById("game-over");
   const overlayText = document.getElementById("game-over-text");
   const helpOverlay = document.getElementById("game-help-overlay");
-  const helpTitle = document.getElementById("game-help-title");
   const helpText = document.getElementById("game-help-text");
   const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
+  const astCanvas = document.getElementById("asteroidsCanvas");
+  const astCtx = astCanvas ? astCanvas.getContext("2d") : null;
   const carCanvas = document.getElementById("gameCanvas");
   const carCtx = carCanvas ? carCanvas.getContext("2d") : null;
   const invCanvas = document.getElementById("invadersCanvas");
   const invCtx = invCanvas ? invCanvas.getContext("2d") : null;
   const brickCanvas = document.getElementById("brickCanvas");
   const brickCtx = brickCanvas ? brickCanvas.getContext("2d") : null;
+  const snakeCanvas = document.getElementById("snakeCanvas");
+  const snakeCtx = snakeCanvas ? snakeCanvas.getContext("2d") : null;
 
+  if (astCanvas) astCanvas.style.touchAction = "none";
   if (carCanvas) carCanvas.style.touchAction = "none";
   if (invCanvas) invCanvas.style.touchAction = "none";
   if (brickCanvas) brickCanvas.style.touchAction = "none";
+  if (snakeCanvas) snakeCanvas.style.touchAction = "none";
 
   let titleRaf = 0;
   let holdLeft = false;
   let holdRight = false;
   let lastTouchStartMs = 0;
-  let currentIndex = panels.length >= 2 ? 1 : 0;
+  let currentIndex = Math.min(GAME_INDEX.car, Math.max(0, panels.length - 1));
   let isDragging = false;
   let dragStartX = 0;
   let dragMoved = false;
@@ -64,9 +72,27 @@ document.addEventListener("DOMContentLoaded", () => {
   const obstacleArt = "[#]";
 
   const storedScores = {
+    asteroids: readStoredNumber(HIGH_SCORE_KEYS.asteroids),
     car: readStoredNumber(HIGH_SCORE_KEYS.car),
     invaders: readStoredNumber(HIGH_SCORE_KEYS.invaders),
-    brick: readStoredNumber(HIGH_SCORE_KEYS.brick)
+    brick: readStoredNumber(HIGH_SCORE_KEYS.brick),
+    snake: readStoredNumber(HIGH_SCORE_KEYS.snake)
+  };
+
+  const ast = {
+    shipX: 200,
+    shipY: 300,
+    angle: -Math.PI / 2,
+    vx: 0,
+    vy: 0,
+    bullets: [],
+    rocks: [],
+    score: 0,
+    high: storedScores.asteroids,
+    gameOver: false,
+    lastShot: 0,
+    shotMs: 280,
+    elapsed: 0
   };
 
   let carSpeed = 5;
@@ -106,8 +132,28 @@ document.addEventListener("DOMContentLoaded", () => {
     bricks: []
   };
 
+  const snake = {
+    cell: 20,
+    cols: 20,
+    rows: 30,
+    body: [],
+    dirX: 1,
+    dirY: 0,
+    pendingTurns: [],
+    food: { x: 14, y: 15 },
+    tickMs: 135,
+    tickAcc: 0,
+    score: 0,
+    high: storedScores.snake,
+    gameOver: false
+  };
+
+  let astPaused = false;
   let invPaused = false;
   let brickPaused = false;
+  let snakePaused = false;
+  let games = [];
+  let suppressScrollPauseUntil = 0;
 
   document.documentElement.classList.add("js");
 
@@ -168,207 +214,6 @@ document.addEventListener("DOMContentLoaded", () => {
     fadeEls.forEach((el) => observer.observe(el));
   }
 
-  function readProjectsCache() {
-    try {
-      const raw = sessionStorage.getItem(PROJECTS_CACHE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed.t !== "number" || !Array.isArray(parsed.repos)) return null;
-      if (Date.now() - parsed.t > PROJECTS_CACHE_TTL_MS) return null;
-      return parsed.repos;
-    } catch {
-      return null;
-    }
-  }
-
-  function writeProjectsCache(repos) {
-    try {
-      sessionStorage.setItem(PROJECTS_CACHE_KEY, JSON.stringify({ t: Date.now(), repos }));
-    } catch {
-      // ignore
-    }
-  }
-
-  function shuffleList(values) {
-    const shuffled = [...values];
-    for (let i = shuffled.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  }
-
-  function readProjectsQueue() {
-    try {
-      const raw = sessionStorage.getItem(PROJECTS_QUEUE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed.poolKey !== "string" || !Array.isArray(parsed.remainingIds)) return null;
-      return parsed;
-    } catch {
-      return null;
-    }
-  }
-
-  function writeProjectsQueue(poolKey, remainingIds) {
-    try {
-      sessionStorage.setItem(PROJECTS_QUEUE_KEY, JSON.stringify({ poolKey, remainingIds }));
-    } catch {
-      // ignore
-    }
-  }
-
-  function selectProjectWindow(repos) {
-    if (repos.length === 0) return [];
-
-    const repoIds = repos.map((repo) => repo.id);
-    const poolKey = repoIds.join(",");
-    const savedQueue = readProjectsQueue();
-    let remainingIds =
-      savedQueue && savedQueue.poolKey === poolKey
-        ? savedQueue.remainingIds.filter((id) => repoIds.includes(id))
-        : [];
-
-    const selectedIds = [];
-    const targetSize = Math.min(PROJECT_LIMIT, repos.length);
-
-    while (selectedIds.length < targetSize) {
-      if (!remainingIds.length) {
-        remainingIds = shuffleList(repoIds);
-      }
-
-      const nextId = remainingIds.shift();
-      if (!selectedIds.includes(nextId)) {
-        selectedIds.push(nextId);
-      }
-    }
-
-    writeProjectsQueue(poolKey, remainingIds);
-
-    return selectedIds
-      .map((id) => repos.find((repo) => repo.id === id))
-      .filter(Boolean);
-  }
-
-  function sanitizeUrl(value) {
-    try {
-      const url = new URL(String(value));
-      if (url.protocol === "http:" || url.protocol === "https:") return url.toString();
-    } catch {
-      // ignore
-    }
-    return "https://github.com/Jett-Lu";
-  }
-
-  function hasFeaturedTopic(repo) {
-    return Array.isArray(repo.topics) && repo.topics.some((topic) => String(topic).toLowerCase() === FEATURED_TOPIC);
-  }
-
-  function hasProjectSummary(repo) {
-    return Boolean(repo.description || repo.homepage);
-  }
-
-  function compareRepos(a, b) {
-    const archivedDiff = Number(a.archived) - Number(b.archived);
-    if (archivedDiff !== 0) return archivedDiff;
-
-    const summaryDiff = Number(hasProjectSummary(b)) - Number(hasProjectSummary(a));
-    if (summaryDiff !== 0) return summaryDiff;
-
-    const updatedDiff = new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-    if (updatedDiff !== 0) return updatedDiff;
-
-    const starsDiff = (b.stargazers_count || 0) - (a.stargazers_count || 0);
-    if (starsDiff !== 0) return starsDiff;
-
-    return a.name.localeCompare(b.name);
-  }
-
-  function createProjectCard(repo, langList) {
-    const card = document.createElement("article");
-    card.className = "project-card";
-
-    const title = document.createElement("h3");
-    title.textContent = repo.name;
-
-    const description = document.createElement("p");
-    description.textContent = repo.description || "No description provided.";
-
-    const languages = document.createElement("p");
-    const languagesLabel = document.createElement("strong");
-    languagesLabel.textContent = "Languages:";
-    languages.append(languagesLabel, ` ${langList}`);
-
-    const link = document.createElement("a");
-    link.href = sanitizeUrl(repo.html_url);
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = "View on GitHub →";
-
-    card.append(title, description, languages, link);
-    return card;
-  }
-
-  async function loadProjects(opts = { force: false }) {
-    if (!projectContainer) return;
-
-    projectContainer.innerHTML = "<p>Loading featured projects...</p>";
-
-    try {
-      let allRepos = null;
-
-      if (!opts.force) {
-        const cached = readProjectsCache();
-        if (cached) allRepos = cached;
-      }
-
-      if (!allRepos) {
-        const res = await fetch(GITHUB_REPOS_URL, { headers: GITHUB_API_HEADERS });
-        if (!res.ok) throw new Error(`GitHub API request failed with status ${res.status}`);
-        allRepos = await res.json();
-        if (!Array.isArray(allRepos)) throw new Error("GitHub API returned an unexpected response.");
-        writeProjectsCache(allRepos);
-      }
-
-      const repos = allRepos.filter((repo) => repo && !repo.fork);
-      const featuredRepos = repos.filter(hasFeaturedTopic).sort(compareRepos);
-      const fallbackRepos = repos.filter((repo) => !hasFeaturedTopic(repo)).sort(compareRepos);
-      const repoPool = featuredRepos.length ? featuredRepos : fallbackRepos;
-      const selected = selectProjectWindow(repoPool);
-
-      projectContainer.innerHTML = "";
-
-      for (const repo of selected) {
-        let langList = "N/A";
-
-        try {
-          const langCacheKey = `jl_lang_${repo.name}`;
-          const cachedLang = sessionStorage.getItem(langCacheKey);
-          if (cachedLang) {
-            langList = cachedLang;
-          } else {
-            const langRes = await fetch(repo.languages_url, { headers: GITHUB_API_HEADERS });
-            if (!langRes.ok) throw new Error(`GitHub API request failed with status ${langRes.status}`);
-            const langs = await langRes.json();
-            langList = Object.keys(langs || {}).join(", ") || "N/A";
-            sessionStorage.setItem(langCacheKey, langList);
-          }
-        } catch {
-          langList = "N/A";
-        }
-
-        projectContainer.appendChild(createProjectCard(repo, langList));
-      }
-
-      if (!selected.length) {
-        projectContainer.innerHTML = "<p>No featured projects found.</p>";
-      }
-    } catch (err) {
-      console.error("GitHub fetch failed:", err);
-      projectContainer.innerHTML = "<p>Failed to load featured projects. Please try again.</p>";
-    }
-  }
-
   function isPlayMode() {
     return Boolean(gameContainer && gameContainer.classList.contains("expanded"));
   }
@@ -378,11 +223,39 @@ document.addEventListener("DOMContentLoaded", () => {
     holdRight = false;
   }
 
-  function showMessageOverlay(messageHtml) {
+  function appendLines(parent, lines) {
+    parent.replaceChildren();
+    lines.forEach((line, index) => {
+      if (index > 0) parent.appendChild(document.createElement("br"));
+      parent.appendChild(document.createTextNode(line));
+    });
+  }
+
+  function createHelpSection(text, extraClass = "") {
+    const section = document.createElement("div");
+    section.className = extraClass ? `help-section ${extraClass}` : "help-section";
+
+    const body = document.createElement("span");
+    body.textContent = text;
+    section.appendChild(body);
+    return section;
+  }
+
+  function renderHelpContent() {
+    if (!helpText) return;
+    const content = getHelpContent();
+    helpText.replaceChildren(
+      createHelpSection(content.controls),
+      createHelpSection(content.summary),
+      createHelpSection("Click or tap the game to resume.", "help-dismiss")
+    );
+  }
+
+  function showMessageOverlay(lines) {
     if (!overlay || !overlayText) return;
     overlay.hidden = false;
     overlay.setAttribute("aria-hidden", "false");
-    overlayText.innerHTML = messageHtml;
+    appendLines(overlayText, lines);
     overlay.style.visibility = "visible";
   }
 
@@ -408,45 +281,24 @@ document.addEventListener("DOMContentLoaded", () => {
     if (helpBtn) helpBtn.focus();
   }
 
+  function getActiveGame() {
+    return games[currentIndex] || null;
+  }
+
   function getHelpContent() {
-    if (currentIndex === 0) {
-      return {
-        controls: "Use arrow keys or hold left/right to move.",
-        summary: "Clear the aliens before they reach you."
-      };
-    }
-
-    if (currentIndex === 1) {
-      return {
-        controls: "Use arrow keys or tap left/right to move.",
-        summary: "Dodge cars and survive as long as possible."
-      };
-    }
-
-    return {
-      controls: "Use arrow keys or hold left/right to move.",
-      summary: "Break all bricks without dropping the ball."
+    return getActiveGame()?.help || {
+      controls: "Use left/right controls.",
+      summary: "Choose a game to see instructions."
     };
   }
 
   function openHelpOverlay() {
-    if (!helpOverlay || !helpTitle || !helpText) return;
+    if (!helpOverlay || !helpText) return;
     if (isPlayMode()) return;
 
     hideOverlay();
 
-    const content = getHelpContent();
-    helpTitle.textContent = "How to play";
-    helpText.innerHTML =
-      `<div class="help-section">` +
-      `<span>${content.controls}</span>` +
-      `</div>` +
-      `<div class="help-section">` +
-      `<span>${content.summary}</span>` +
-      `</div>` +
-      `<div class="help-section help-dismiss">` +
-      `<span>Click or tap the game to resume.</span>` +
-      `</div>`;
+    renderHelpContent();
     helpOverlay.hidden = false;
     helpOverlay.setAttribute("aria-hidden", "false");
     helpOverlay.style.visibility = "visible";
@@ -457,15 +309,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function showOverlay(score, highScore) {
     const retry = "Click or tap the game to try again.";
-    showMessageOverlay(
-      `Your score:<br>${Math.floor(score)}<br><br>` +
-      `Highscore:<br>${Math.floor(highScore)}<br><br>` +
+    showMessageOverlay([
+      "Your score:",
+      String(Math.floor(score)),
+      "",
+      "Highscore:",
+      String(Math.floor(highScore)),
+      "",
       retry
-    );
+    ]);
   }
 
   function showPauseOverlay() {
-    showMessageOverlay("Game Paused.<br><br>Click or tap the game to resume.");
+    showMessageOverlay(["Game Paused.", "", "Click or tap the game to resume."]);
   }
 
   function clamp(n, a, b) {
@@ -489,23 +345,19 @@ document.addEventListener("DOMContentLoaded", () => {
     currentIndex = clamp(index, 0, panels.length - 1);
     panels.forEach((panel, panelIndex) => {
       const isActivePanel = panelIndex === currentIndex;
+      const distance = Math.abs(panelIndex - currentIndex);
       panel.classList.toggle("active", isActivePanel);
+      panel.classList.toggle("distance-1", distance === 1);
+      panel.classList.toggle("distance-2", distance === 2);
+      panel.classList.toggle("distance-far", distance > 2);
+      panel.classList.toggle("distance-before", panelIndex < currentIndex);
+      panel.classList.toggle("distance-after", panelIndex > currentIndex);
+      panel.style.removeProperty("order");
       panel.setAttribute("aria-hidden", String(!isActivePanel));
       panel.tabIndex = isActivePanel ? 0 : -1;
     });
-    if (helpOpen && helpTitle && helpText) {
-      const content = getHelpContent();
-      helpTitle.textContent = "How to play";
-      helpText.innerHTML =
-        `<div class="help-section">` +
-        `<span>${content.controls}</span>` +
-        `</div>` +
-        `<div class="help-section">` +
-        `<span>${content.summary}</span>` +
-        `</div>` +
-        `<div class="help-section help-dismiss">` +
-        `<span>Click or tap the game to resume.</span>` +
-        `</div>`;
+    if (helpOpen && helpText) {
+      renderHelpContent();
     }
     updateCarouselArrows();
   }
@@ -594,11 +446,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function centerActive(animate) {
     if (!viewport || !carousel || !panels[currentIndex]) return;
-    const viewportRect = viewport.getBoundingClientRect();
-    const activeRect = panels[currentIndex].getBoundingClientRect();
-    const viewportCenter = viewportRect.left + viewportRect.width / 2;
-    const activeCenter = activeRect.left + activeRect.width / 2;
-    setTranslateX(getTranslateX() + (viewportCenter - activeCenter), animate);
+    const activePanel = panels[currentIndex];
+    const activeCenter = activePanel.offsetLeft + activePanel.offsetWidth / 2;
+    const carouselCenter = carousel.offsetWidth / 2;
+    setTranslateX(carouselCenter - activeCenter, animate);
   }
 
   function snapToNearest() {
@@ -611,6 +462,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let bestDist = Infinity;
 
     panels.forEach((panel, index) => {
+      if (panel.classList.contains("distance-far")) return;
+      if (window.getComputedStyle(panel).display === "none") return;
+
       const rect = panel.getBoundingClientRect();
       const center = rect.left + rect.width / 2;
       const distance = Math.abs(center - viewportCenter);
@@ -630,6 +484,214 @@ document.addEventListener("DOMContentLoaded", () => {
     if (candidate <= currentHigh) return currentHigh;
     writeStoredNumber(key, candidate);
     return candidate;
+  }
+
+  function setAstCanvasSize() {
+    if (!astCanvas) return;
+    astCanvas.width = 400;
+    astCanvas.height = 600;
+  }
+
+  function wrapPosition(obj, width, height) {
+    if (obj.x < 0) obj.x += width;
+    if (obj.x > width) obj.x -= width;
+    if (obj.y < 0) obj.y += height;
+    if (obj.y > height) obj.y -= height;
+  }
+
+  function makeAsteroidFromEdge(index, speedBoost) {
+    if (!astCanvas) return { x: 0, y: 0, vx: 0, vy: 0, r: 20 };
+    const side = index % 4;
+    const margin = 26;
+    const x = side === 0 ? -margin : side === 1 ? astCanvas.width + margin : 40 + Math.random() * 320;
+    const y = side === 2 ? -margin : side === 3 ? astCanvas.height + margin : 80 + Math.random() * 440;
+    const targetX = 140 + Math.random() * 120;
+    const targetY = 230 + Math.random() * 140;
+    const dx = targetX - x;
+    const dy = targetY - y;
+    const len = Math.hypot(dx, dy) || 1;
+    const speed = (28 + Math.random() * 22) * speedBoost;
+    return {
+      x,
+      y,
+      vx: (dx / len) * speed,
+      vy: (dy / len) * speed,
+      r: 18 + Math.random() * 9,
+      art: ["[O]", "{O}", "(0)", "<O>", "[0]"][index % 5]
+    };
+  }
+
+  function spawnAsteroids() {
+    ast.rocks = [];
+    const speedBoost = 1 + Math.min(1.3, ast.score / 220 + ast.elapsed / 85);
+    const rockCount = Math.min(5, 2 + Math.floor(ast.score / 40 + ast.elapsed / 28));
+    for (let i = 0; i < rockCount; i += 1) {
+      ast.rocks.push(makeAsteroidFromEdge(i, speedBoost));
+    }
+  }
+
+  function recycleAsteroid(rock, index) {
+    const speedBoost = 1 + Math.min(1.3, ast.score / 220 + ast.elapsed / 85);
+    Object.assign(rock, makeAsteroidFromEdge(index, speedBoost));
+  }
+
+  function resetAsteroidsGame() {
+    if (!astCanvas || !astCtx) return;
+    setAstCanvasSize();
+    ast.shipX = 200;
+    ast.shipY = 300;
+    ast.angle = -Math.PI / 2;
+    ast.vx = 0;
+    ast.vy = 0;
+    ast.bullets = [];
+    ast.score = 0;
+    ast.gameOver = false;
+    astPaused = false;
+    ast.elapsed = 0;
+    ast.lastShot = Date.now();
+    hideOverlay();
+    spawnAsteroids();
+  }
+
+  function drawAsteroids() {
+    if (!astCanvas || !astCtx) return;
+
+    astCtx.clearRect(0, 0, astCanvas.width, astCanvas.height);
+    astCtx.strokeStyle = "white";
+    astCtx.fillStyle = "white";
+    astCtx.lineWidth = 2;
+    astCtx.strokeRect(0, 0, astCanvas.width, astCanvas.height);
+
+    astCtx.font = "16px Arial";
+    astCtx.fillText(`Score: ${Math.floor(ast.score)}`, 10, 20);
+    astCtx.fillText(`High Score: ${Math.floor(ast.high)}`, 10, 40);
+
+    astCtx.save();
+    astCtx.translate(ast.shipX, ast.shipY);
+    astCtx.rotate(ast.angle + Math.PI / 2);
+    astCtx.font = "22px Courier";
+    astCtx.textAlign = "center";
+    astCtx.textBaseline = "middle";
+    astCtx.fillText("/\\", 0, 0);
+    astCtx.restore();
+    astCtx.textAlign = "start";
+    astCtx.textBaseline = "alphabetic";
+
+    ast.bullets.forEach((bullet) => {
+      astCtx.font = "18px Courier";
+      astCtx.save();
+      astCtx.translate(bullet.x, bullet.y);
+      astCtx.rotate(bullet.angle + Math.PI / 2);
+      astCtx.textAlign = "center";
+      astCtx.textBaseline = "middle";
+      astCtx.fillText("|", 0, 0);
+      astCtx.restore();
+      astCtx.textAlign = "start";
+      astCtx.textBaseline = "alphabetic";
+    });
+
+    ast.rocks.forEach((rock) => {
+      astCtx.font = "20px Courier";
+      astCtx.fillText(rock.art, rock.x - 15, rock.y + 6);
+    });
+  }
+
+  function updateAsteroids(dt) {
+    if (!astCanvas || !astCtx || !isPlayMode() || currentIndex !== GAME_INDEX.asteroids) return;
+    if (ast.gameOver || astPaused) return;
+
+    const turnSpeed = 3.6;
+    if (holdLeft) ast.angle -= turnSpeed * dt;
+    if (holdRight) ast.angle += turnSpeed * dt;
+    ast.elapsed += dt;
+
+    const thrust = 62;
+    ast.vx += Math.cos(ast.angle) * thrust * dt;
+    ast.vy += Math.sin(ast.angle) * thrust * dt;
+    ast.vx *= 0.965;
+    ast.vy *= 0.965;
+    ast.shipX += ast.vx * dt;
+    ast.shipY += ast.vy * dt;
+    if (ast.shipX < 0) ast.shipX += astCanvas.width;
+    if (ast.shipX > astCanvas.width) ast.shipX -= astCanvas.width;
+    if (ast.shipY < 0) ast.shipY += astCanvas.height;
+    if (ast.shipY > astCanvas.height) ast.shipY -= astCanvas.height;
+
+    const now = Date.now();
+    if (now - ast.lastShot > ast.shotMs) {
+      ast.lastShot = now;
+      ast.bullets.push({
+        x: ast.shipX + Math.cos(ast.angle) * 18,
+        y: ast.shipY + Math.sin(ast.angle) * 18,
+        vx: Math.cos(ast.angle) * 420 + ast.vx,
+        vy: Math.sin(ast.angle) * 420 + ast.vy,
+        angle: ast.angle,
+        life: 1.1
+      });
+    }
+
+    ast.bullets.forEach((bullet) => {
+      bullet.x += bullet.vx * dt;
+      bullet.y += bullet.vy * dt;
+      bullet.life -= dt;
+    });
+    ast.bullets = ast.bullets.filter((bullet) => (
+      bullet.life > 0 &&
+      bullet.x >= -10 &&
+      bullet.x <= astCanvas.width + 10 &&
+      bullet.y >= -10 &&
+      bullet.y <= astCanvas.height + 10
+    ));
+
+    ast.rocks.forEach((rock, index) => {
+      rock.x += rock.vx * dt;
+      rock.y += rock.vy * dt;
+      if (
+        rock.x < -80 ||
+        rock.x > astCanvas.width + 80 ||
+        rock.y < -80 ||
+        rock.y > astCanvas.height + 80
+      ) {
+        recycleAsteroid(rock, index);
+      }
+    });
+
+    ast.bullets.forEach((bullet) => {
+      ast.rocks.forEach((rock) => {
+        if (rock.dead || bullet.dead) return;
+        const dx = bullet.x - rock.x;
+        const dy = bullet.y - rock.y;
+        if (Math.hypot(dx, dy) < rock.r) {
+          bullet.dead = true;
+          rock.dead = true;
+          ast.score += 10;
+          ast.high = updateStoredHighScore(HIGH_SCORE_KEYS.asteroids, ast.high, ast.score);
+        }
+      });
+    });
+    ast.bullets = ast.bullets.filter((bullet) => !bullet.dead);
+    ast.rocks = ast.rocks.filter((rock) => !rock.dead);
+
+    if (!ast.rocks.length) {
+      spawnAsteroids();
+    }
+
+    for (const rock of ast.rocks) {
+      const dx = ast.shipX - rock.x;
+      const dy = ast.shipY - rock.y;
+      if (Math.hypot(dx, dy) < rock.r + 10) {
+        ast.gameOver = true;
+        ast.high = updateStoredHighScore(HIGH_SCORE_KEYS.asteroids, ast.high, ast.score);
+        showOverlay(ast.score, ast.high);
+        break;
+      }
+    }
+  }
+
+  function resumeAsteroidsIfPaused() {
+    if (!astPaused) return;
+    astPaused = false;
+    hideOverlay();
   }
 
   function setCarCanvasSize() {
@@ -717,7 +779,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateCarGame(deltaTime) {
-    if (!carCanvas || !carCtx || !isPlayMode() || currentIndex !== 1) return;
+    if (!carCanvas || !carCtx || !isPlayMode() || currentIndex !== GAME_INDEX.car) return;
     if (carPaused || carGameOver) return;
 
     carSpeed += carAcceleration * deltaTime;
@@ -850,7 +912,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateInvaders(dt) {
-    if (!invCanvas || !invCtx || !isPlayMode() || currentIndex !== 0) return;
+    if (!invCanvas || !invCtx || !isPlayMode() || currentIndex !== GAME_INDEX.invaders) return;
     if (inv.gameOver || invPaused) return;
 
     const shipSpeed = 380;
@@ -980,27 +1042,48 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateBrick(dt) {
-    if (!brickCanvas || !brickCtx || !isPlayMode() || currentIndex !== 2) return;
+    if (!brickCanvas || !brickCtx || !isPlayMode() || currentIndex !== GAME_INDEX.brick) return;
     if (brick.gameOver || brickPaused) return;
 
+    const ballMinX = 12;
+    const ballMaxX = brickCanvas.width - 12;
+    const ballMinY = 60;
+    const paddleY = 548;
+    const paddleWidth = 80;
+    const paddleCatchPadding = 8;
     const paddleSpeed = 540;
     if (holdLeft) brick.paddleX -= paddleSpeed * dt;
     if (holdRight) brick.paddleX += paddleSpeed * dt;
 
-    brick.paddleX = clamp(brick.paddleX, 10, 310);
+    brick.paddleX = clamp(brick.paddleX, 10, brickCanvas.width - paddleWidth - 10);
 
     const ballSpeedScale = dt * 60;
+    const previousBallY = brick.ballY;
     brick.ballX += brick.ballDX * ballSpeedScale;
     brick.ballY += brick.ballDY * ballSpeedScale;
 
-    if (brick.ballX <= 10 || brick.ballX >= 390) brick.ballDX *= -1;
-    if (brick.ballY <= 60) brick.ballDY *= -1;
+    if (brick.ballX <= ballMinX) {
+      brick.ballX = ballMinX;
+      brick.ballDX = Math.abs(brick.ballDX);
+    } else if (brick.ballX >= ballMaxX) {
+      brick.ballX = ballMaxX;
+      brick.ballDX = -Math.abs(brick.ballDX);
+    }
 
-    const paddleY = 548;
-    if (brick.ballY >= paddleY && brick.ballY <= paddleY + 14) {
-      if (brick.ballX >= brick.paddleX && brick.ballX <= brick.paddleX + 80) {
+    if (brick.ballY <= ballMinY) {
+      brick.ballY = ballMinY;
+      brick.ballDY = Math.abs(brick.ballDY);
+    }
+
+    const crossedPaddle = previousBallY < paddleY && brick.ballY >= paddleY;
+    if ((crossedPaddle || (brick.ballY >= paddleY && brick.ballY <= paddleY + 14)) && brick.ballDY > 0) {
+      if (
+        brick.ballX >= brick.paddleX - paddleCatchPadding &&
+        brick.ballX <= brick.paddleX + paddleWidth + paddleCatchPadding
+      ) {
+        brick.ballY = paddleY - 2;
         brick.ballDY = -Math.abs(brick.ballDY);
-        const hit = (brick.ballX - (brick.paddleX + 40)) / 40;
+        const hit = (brick.ballX - (brick.paddleX + paddleWidth / 2)) / (paddleWidth / 2);
         brick.ballDX = hit * 3.4;
       }
     }
@@ -1031,22 +1114,238 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function setSnakeCanvasSize() {
+    if (!snakeCanvas) return;
+    snakeCanvas.width = 400;
+    snakeCanvas.height = 600;
+    snake.cols = snakeCanvas.width / snake.cell;
+    snake.rows = snakeCanvas.height / snake.cell;
+  }
+
+  function placeSnakeFood() {
+    do {
+      snake.food = {
+        x: Math.floor(Math.random() * snake.cols),
+        y: Math.floor(Math.random() * snake.rows)
+      };
+    } while (snake.body.some((part) => part.x === snake.food.x && part.y === snake.food.y));
+  }
+
+  function resetSnakeGame() {
+    if (!snakeCanvas || !snakeCtx) return;
+    setSnakeCanvasSize();
+    snake.body = [
+      { x: 10, y: 15 },
+      { x: 9, y: 15 },
+      { x: 8, y: 15 }
+    ];
+    snake.dirX = 1;
+    snake.dirY = 0;
+    snake.pendingTurns = [];
+    snake.tickAcc = 0;
+    snake.score = 0;
+    snake.gameOver = false;
+    snakePaused = false;
+    hideOverlay();
+    placeSnakeFood();
+  }
+
+  function turnSnake(dir) {
+    if (snake.pendingTurns.length > 2) return;
+    snake.pendingTurns.push(dir);
+  }
+
+  function applySnakeTurn() {
+    const turn = snake.pendingTurns.shift();
+    if (!turn) return;
+    const { dirX, dirY } = snake;
+    if (turn < 0) {
+      snake.dirX = dirY;
+      snake.dirY = -dirX;
+    } else {
+      snake.dirX = -dirY;
+      snake.dirY = dirX;
+    }
+  }
+
+  function drawSnake() {
+    if (!snakeCanvas || !snakeCtx) return;
+
+    snakeCtx.clearRect(0, 0, snakeCanvas.width, snakeCanvas.height);
+    snakeCtx.strokeStyle = "white";
+    snakeCtx.fillStyle = "white";
+    snakeCtx.strokeRect(0, 0, snakeCanvas.width, snakeCanvas.height);
+
+    snakeCtx.font = "16px Arial";
+    snakeCtx.fillText(`Score: ${Math.floor(snake.score)}`, 10, 20);
+    snakeCtx.fillText(`High Score: ${Math.floor(snake.high)}`, 10, 40);
+
+    snakeCtx.font = "20px Courier";
+    snakeCtx.fillText("*", snake.food.x * snake.cell + 5, snake.food.y * snake.cell + 16);
+
+    snake.body.forEach((part, index) => {
+      snakeCtx.fillText(index === 0 ? "@" : "o", part.x * snake.cell + 4, part.y * snake.cell + 16);
+    });
+  }
+
+  function updateSnake(dt) {
+    if (!snakeCanvas || !snakeCtx || !isPlayMode() || currentIndex !== GAME_INDEX.snake) return;
+    if (snake.gameOver || snakePaused) return;
+
+    snake.tickAcc += dt * 1000;
+    if (snake.tickAcc < snake.tickMs) return;
+    snake.tickAcc %= snake.tickMs;
+
+    applySnakeTurn();
+    const head = snake.body[0];
+    const next = {
+      x: head.x + snake.dirX,
+      y: head.y + snake.dirY
+    };
+
+    const eatsFood = next.x === snake.food.x && next.y === snake.food.y;
+    const bodyToCheck = eatsFood ? snake.body : snake.body.slice(0, -1);
+
+    if (
+      next.x < 0 ||
+      next.x >= snake.cols ||
+      next.y < 0 ||
+      next.y >= snake.rows ||
+      bodyToCheck.some((part) => part.x === next.x && part.y === next.y)
+    ) {
+      snake.gameOver = true;
+      snake.high = updateStoredHighScore(HIGH_SCORE_KEYS.snake, snake.high, snake.score);
+      showOverlay(snake.score, snake.high);
+      return;
+    }
+
+    snake.body.unshift(next);
+    if (eatsFood) {
+      snake.score += 10;
+      snake.high = updateStoredHighScore(HIGH_SCORE_KEYS.snake, snake.high, snake.score);
+      placeSnakeFood();
+    } else {
+      snake.body.pop();
+    }
+  }
+
+  function resumeSnakeIfPaused() {
+    if (!snakePaused) return;
+    snakePaused = false;
+    hideOverlay();
+  }
+
+  games = [
+    {
+      key: "asteroids",
+      help: {
+        controls: "Use arrow keys or hold left/right to rotate.",
+        summary: "Auto-shoot while steering around incoming asteroids."
+      },
+      canvas: astCanvas,
+      reset: resetAsteroidsGame,
+      update: updateAsteroids,
+      draw: drawAsteroids,
+      pause: () => {
+        if (!ast.gameOver) astPaused = true;
+      },
+      resume: resumeAsteroidsIfPaused,
+      isOver: () => ast.gameOver
+    },
+    {
+      key: "invaders",
+      help: {
+        controls: "Use arrow keys or hold left/right to move.",
+        summary: "Clear the aliens before they reach you."
+      },
+      canvas: invCanvas,
+      reset: resetInvadersGame,
+      update: updateInvaders,
+      draw: drawInvaders,
+      pause: (opts = {}) => {
+        if (inv.gameOver) return;
+        invPaused = true;
+        if (!opts.silent) showPauseOverlay();
+      },
+      resume: resumeInvadersIfPaused,
+      isOver: () => inv.gameOver
+    },
+    {
+      key: "car",
+      help: {
+        controls: "Use arrow keys or tap left/right to move.",
+        summary: "Dodge cars and survive as long as possible."
+      },
+      canvas: carCanvas,
+      reset: resetCarGame,
+      update: updateCarGame,
+      draw: drawCarGame,
+      pause: () => {
+        if (!carGameOver) carPaused = true;
+      },
+      resume: resumeCarIfPaused,
+      isOver: () => carGameOver
+    },
+    {
+      key: "brick",
+      help: {
+        controls: "Use arrow keys or hold left/right to move.",
+        summary: "Break all bricks without dropping the ball."
+      },
+      canvas: brickCanvas,
+      reset: resetBrickGame,
+      update: updateBrick,
+      draw: drawBrick,
+      pause: (opts = {}) => {
+        if (brick.gameOver) return;
+        brickPaused = true;
+        if (!opts.silent) showPauseOverlay();
+      },
+      resume: resumeBrickIfPaused,
+      isOver: () => brick.gameOver
+    },
+    {
+      key: "snake",
+      help: {
+        controls: "Use arrow keys or tap left/right to turn.",
+        summary: "The snake always moves forward. Keep turning and eat the food."
+      },
+      canvas: snakeCanvas,
+      reset: resetSnakeGame,
+      update: updateSnake,
+      draw: drawSnake,
+      pause: () => {
+        if (!snake.gameOver) snakePaused = true;
+      },
+      resume: resumeSnakeIfPaused,
+      isOver: () => snake.gameOver
+    }
+  ];
+
   function handlePressAtClient(clientX, clientY) {
     if (!isPlayMode()) return;
     const pos = getCanvasPosFromClient(clientX, clientY);
     if (!pos) return;
     const x = pos.x;
 
-    if (currentIndex === 0 && invPaused && !inv.gameOver) {
+    if (currentIndex === GAME_INDEX.asteroids && astPaused && !ast.gameOver) {
+      resumeAsteroidsIfPaused();
+      return;
+    }
+    if (currentIndex === GAME_INDEX.invaders && invPaused && !inv.gameOver) {
       resumeInvadersIfPaused();
       return;
     }
-    if (currentIndex === 2 && brickPaused && !brick.gameOver) {
+    if (currentIndex === GAME_INDEX.brick && brickPaused && !brick.gameOver) {
       resumeBrickIfPaused();
       return;
     }
+    if (currentIndex === GAME_INDEX.snake && snakePaused && !snake.gameOver) {
+      resumeSnakeIfPaused();
+      return;
+    }
 
-    if (currentIndex === 1 && !carGameOver) {
+    if (currentIndex === GAME_INDEX.car && !carGameOver) {
       if (carPaused) resumeCarIfPaused();
       const mid = carCanvas ? carCanvas.width / 2 : 200;
 
@@ -1055,6 +1354,11 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         playerCar.lane = Math.min(laneCount - 1, playerCar.lane + 1);
       }
+      return;
+    }
+
+    if (currentIndex === GAME_INDEX.snake && !snake.gameOver) {
+      turnSnake(x < 200 ? -1 : 1);
       return;
     }
 
@@ -1089,7 +1393,25 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
     }
 
-    if (currentIndex === 1) {
+    if (currentIndex === GAME_INDEX.asteroids) {
+      if (ast.gameOver) {
+        resetAsteroidsGame();
+        return;
+      }
+      if (astPaused) {
+        resumeAsteroidsIfPaused();
+      }
+      if (event.key === "ArrowLeft") {
+        holdLeft = true;
+        holdRight = false;
+      } else if (event.key === "ArrowRight") {
+        holdRight = true;
+        holdLeft = false;
+      }
+      return;
+    }
+
+    if (currentIndex === GAME_INDEX.car) {
       if (carGameOver) {
         resetCarGame();
         return;
@@ -1105,7 +1427,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (currentIndex === 0) {
+    if (currentIndex === GAME_INDEX.invaders) {
       if (inv.gameOver) {
         resetInvadersGame();
         return;
@@ -1123,7 +1445,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (currentIndex === 2) {
+    if (currentIndex === GAME_INDEX.brick) {
       if (brick.gameOver) {
         resetBrickGame();
         return;
@@ -1137,6 +1459,22 @@ document.addEventListener("DOMContentLoaded", () => {
       } else if (event.key === "ArrowRight") {
         holdRight = true;
         holdLeft = false;
+      }
+      return;
+    }
+
+    if (currentIndex === GAME_INDEX.snake) {
+      if (snake.gameOver) {
+        resetSnakeGame();
+        return;
+      }
+      if (snakePaused) {
+        resumeSnakeIfPaused();
+      }
+      if (event.key === "ArrowLeft") {
+        turnSnake(-1);
+      } else if (event.key === "ArrowRight") {
+        turnSnake(1);
       }
     }
   }
@@ -1153,35 +1491,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function pauseAllGames() {
     clearHolds();
-    if (!carGameOver) carPaused = true;
-    if (!inv.gameOver) invPaused = true;
-    if (!brick.gameOver) brickPaused = true;
+    games.forEach((game) => game.pause({ silent: true }));
+    hideOverlay();
   }
 
   function resumeActiveGame() {
-    if (currentIndex === 0) resetInvadersGame();
-    if (currentIndex === 1) resetCarGame();
-    if (currentIndex === 2) resetBrickGame();
+    getActiveGame()?.reset();
+  }
+
+  function isNearActive(index) {
+    return Math.abs(index - currentIndex) <= 1;
   }
 
   function drawAllOnce() {
-    drawCarGame();
-    drawInvaders();
-    drawBrick();
+    games.forEach((game, index) => {
+      if (isNearActive(index)) game.draw();
+    });
+  }
+
+  function drawEveryGameOnce() {
+    games.forEach((game) => game.draw());
   }
 
   function loop(ts) {
     if (!lastCarFrame) lastCarFrame = ts;
-    const dt = (ts - lastCarFrame) / 1000;
+    const dt = Math.min((ts - lastCarFrame) / 1000, 0.05);
     lastCarFrame = ts;
 
-    updateCarGame(dt);
-    updateInvaders(dt);
-    updateBrick(dt);
-
-    drawCarGame();
-    drawInvaders();
-    drawBrick();
+    if (isPlayMode()) {
+      const activeGame = getActiveGame();
+      activeGame?.update(dt);
+      activeGame?.draw();
+    }
 
     requestAnimationFrame(loop);
   }
@@ -1210,12 +1551,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  if (refreshBtn) {
-    refreshBtn.addEventListener("click", () => loadProjects({ force: true }));
+  if (refreshBtn && loadProjectCards) {
+    refreshBtn.addEventListener("click", () => loadProjectCards(projectContainer, { force: true }));
   }
 
   setFadeInState();
-  loadProjects({ force: false });
+  if (loadProjectCards) {
+    loadProjectCards(projectContainer, { force: false });
+  }
 
   window.addEventListener("scroll", requestTitleUpdate, { passive: true });
   window.addEventListener("resize", () => {
@@ -1229,6 +1572,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("popstate", () => {
     if (!isPlayMode() || !gameContainer) return;
 
+    suppressScrollPauseUntil = Date.now() + 300;
     gameContainer.classList.remove("expanded");
     hideOverlay();
     hideHelpOverlay();
@@ -1245,22 +1589,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener("scroll", () => {
     if (!isPlayMode()) return;
+    if (Date.now() < suppressScrollPauseUntil) return;
 
-    if (currentIndex === 1) {
-      if (carGameOver) return;
-      carPaused = true;
-    } else if (currentIndex === 0) {
-      if (inv.gameOver) return;
-      pauseInvaders();
-      return;
-    } else if (currentIndex === 2) {
-      if (brick.gameOver || brickPaused) return;
-      pauseBrick();
-      return;
-    } else {
-      return;
-    }
-
+    const activeGame = getActiveGame();
+    if (!activeGame || activeGame.isOver()) return;
+    activeGame.pause();
     showPauseOverlay();
   });
 
@@ -1296,7 +1629,11 @@ document.addEventListener("DOMContentLoaded", () => {
       dragMoved = false;
       dragStartX = event.clientX;
       pendingPanelIndex = panels.indexOf(event.target.closest(".game-panel"));
-      carousel.setPointerCapture(event.pointerId);
+      try {
+        carousel.setPointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
       carousel.style.transition = "none";
     });
 
@@ -1365,10 +1702,12 @@ document.addEventListener("DOMContentLoaded", () => {
         hideOverlay();
         resumeActiveGame();
       } else {
+        suppressScrollPauseUntil = Date.now() + 300;
         gameContainer.classList.remove("expanded");
         hideOverlay();
         pauseAllGames();
         drawAllOnce();
+        requestAnimationFrame(hideOverlay);
       }
 
       updatePlayButton();
@@ -1390,6 +1729,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  if (helpOverlay) {
+    helpOverlay.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      closeHelpOverlay();
+    });
+  }
+
   document.addEventListener("pointerdown", (event) => {
     if (helpOpen) {
       if (helpOverlay && helpOverlay.contains(event.target)) {
@@ -1407,22 +1754,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const pos = getCanvasPosFromClient(event.clientX, event.clientY);
     if (!pos) return;
 
-    if (currentIndex === 1 && carGameOver) {
-      resetCarGame();
+    const activeGame = getActiveGame();
+    if (activeGame?.isOver()) {
+      activeGame.reset();
       event.preventDefault();
       return;
     }
-    if (currentIndex === 0 && inv.gameOver) {
-      resetInvadersGame();
-      event.preventDefault();
-      return;
-    }
-    if (currentIndex === 2 && brick.gameOver) {
-      resetBrickGame();
-      event.preventDefault();
-      return;
-    }
-    if (currentIndex === 1 && carPaused && !carGameOver) resumeCarIfPaused();
+    if (currentIndex === GAME_INDEX.car && carPaused && !carGameOver) resumeCarIfPaused();
 
     try {
       pos.canvas.setPointerCapture(event.pointerId);
@@ -1453,14 +1791,14 @@ document.addEventListener("DOMContentLoaded", () => {
   updateHelpButton();
   hideOverlay();
   hideHelpOverlay();
+  setAstCanvasSize();
   setCarCanvasSize();
   setInvCanvasSize();
   setBrickCanvasSize();
+  setSnakeCanvasSize();
 
-  resetCarGame();
-  resetInvadersGame();
-  resetBrickGame();
-  drawAllOnce();
+  games.forEach((game) => game.reset());
+  drawEveryGameOnce();
 
   requestAnimationFrame(() => {
     centerActive(false);

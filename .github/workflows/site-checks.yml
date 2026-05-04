@@ -20,10 +20,12 @@ jobs:
           node-version: "20"
 
       - name: Validate HTML
-        run: npx --yes htmlhint index.html --config .htmlhintrc
+        run: npx --yes htmlhint@1.6.3 index.html --config .htmlhintrc
 
       - name: Validate CSS
-        run: npx --yes stylelint styles.css --config .stylelintrc.json
+        run: npx --yes stylelint@16.24.0 styles.css --config .stylelintrc.json
 
       - name: Validate JavaScript syntax
-        run: node --check script.js
+        run: |
+          node --check script.js
+          node --check scripts/projects.js

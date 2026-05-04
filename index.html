@@ -81,19 +81,29 @@
         aria-roledescription="carousel"
       >
         <div id="game-carousel">
-          <div class="game-panel" data-index="0" role="group" aria-label="Space Invaders game">
+          <div class="game-panel distance-2 distance-before" data-index="0" role="group" aria-label="Asteroids game">
+            <canvas id="asteroidsCanvas" aria-label="Asteroids game preview">
+              Asteroids game preview
+            </canvas>
+          </div>
+          <div class="game-panel distance-1 distance-before" data-index="1" role="group" aria-label="Space Invaders game">
             <canvas id="invadersCanvas" aria-label="Space Invaders game preview">
               Space Invaders game preview
             </canvas>
           </div>
-          <div class="game-panel active" data-index="1" role="group" aria-label="Racing game">
+          <div class="game-panel active" data-index="2" role="group" aria-label="Racing game">
             <canvas id="gameCanvas" aria-label="Racing game preview">
               Racing game preview
             </canvas>
           </div>
-          <div class="game-panel" data-index="2" role="group" aria-label="Brick breaker game">
+          <div class="game-panel distance-1 distance-after" data-index="3" role="group" aria-label="Brick breaker game">
             <canvas id="brickCanvas" aria-label="Brick breaker game preview">
               Brick breaker game preview
+            </canvas>
+          </div>
+          <div class="game-panel distance-2 distance-after" data-index="4" role="group" aria-label="Snake game">
+            <canvas id="snakeCanvas" aria-label="Snake game preview">
+              Snake game preview
             </canvas>
           </div>
         </div>
@@ -114,9 +124,16 @@
         </div>
       </div>
 
-      <div id="game-help-overlay" role="dialog" aria-modal="true" aria-hidden="true" tabindex="-1" hidden>
+      <div
+        id="game-help-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden="true"
+        aria-describedby="game-help-text"
+        tabindex="-1"
+        hidden
+      >
         <div id="game-help-box" role="document">
-          <h2 id="game-help-title">How to Play:</h2>
           <p id="game-help-text" aria-live="polite"></p>
         </div>
       </div>
@@ -187,6 +204,7 @@
     </p>
   </footer>
 
+  <script src="scripts/projects.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

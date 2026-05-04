@@ -193,8 +193,11 @@ body {
   justify-content: center;
   transform: scale(0.78);
   opacity: 0.55;
-  transition: transform 220ms ease, opacity 220ms ease;
+  transition:
+    transform 220ms ease,
+    opacity 220ms ease;
   cursor: pointer;
+  will-change: transform, opacity;
 }
 
 .game-panel:active {
@@ -213,6 +216,29 @@ body {
   cursor: grab;
 }
 
+.game-panel.distance-2 {
+  transform: scale(0.56);
+  opacity: 0.28;
+}
+
+.game-panel.distance-2.distance-before {
+  transform: translateX(48px) scale(0.56);
+}
+
+.game-panel.distance-2.distance-after {
+  transform: translateX(-48px) scale(0.56);
+}
+
+.game-panel.distance-far {
+  display: none;
+}
+
+@media (max-width: 1800px) {
+  .game-panel.distance-2 {
+    display: none;
+  }
+}
+
 .game-panel canvas {
   width: 100%;
   height: 100%;
@@ -228,6 +254,8 @@ body {
 #game-container.expanded .game-panel.active {
   transform: scale(1);
   cursor: default;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 #game-controls {
@@ -311,12 +339,6 @@ body {
   cursor: pointer;
 }
 
-#game-help-title {
-  font-size: 20px;
-  font-weight: 400;
-  margin-bottom: 18px;
-}
-
 #game-help-text {
   font-size: 20px;
   line-height: 1.5;
@@ -361,6 +383,8 @@ body {
 }
 
 .project-card {
+  display: flex;
+  flex-direction: column;
   width: 280px;
   padding: 20px;
   background: #fff;
@@ -391,7 +415,7 @@ body {
 
 .project-card a {
   display: inline-block;
-  margin-top: 10px;
+  margin-top: auto;
   font-weight: bold;
   color: #06c;
   text-decoration: none;
@@ -538,11 +562,6 @@ button:focus-visible,
   transition: opacity 200ms ease;
 }
 
-#game-container.expanded .game-panel.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
 canvas {
   touch-action: none;
 }
@@ -578,10 +597,8 @@ canvas {
     scroll-behavior: auto;
   }
 
-  *,
-  *::before,
-  *::after {
-    animation: none !important;
+  .js .fade-in-section,
+  #fixed-name-title {
     transition: none !important;
   }
 }

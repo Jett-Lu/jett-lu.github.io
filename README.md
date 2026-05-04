@@ -13,7 +13,7 @@ It is intentionally lightweight, fast, and dependency-free, emphasizing clarity,
 ## Features
 
 - Responsive, mobile-friendly single-page layout
-- Interactive JavaScript-based game demonstrating frontend logic
+- Interactive JavaScript-based arcade games demonstrating frontend logic
 - Direct links to resume, GitHub, and contact information
 - Clean, minimal design focused on readability and usability
 - Deployed using GitHub Pages for simplicity and reliability
