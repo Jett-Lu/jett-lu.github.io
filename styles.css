@@ -148,11 +148,11 @@ body {
 }
 
 #carousel-left {
-  left: 14px;
+  left: clamp(16px, calc((100vw - var(--active-panel-width) - 64px - 260px) / 4), 120px);
 }
 
 #carousel-right {
-  right: 14px;
+  right: clamp(16px, calc((100vw - var(--active-panel-width) - 64px - 260px) / 4), 120px);
 }
 
 .carousel-arrow.hidden {

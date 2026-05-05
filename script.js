@@ -599,18 +599,37 @@ document.addEventListener("DOMContentLoaded", () => {
     return value + direction * move;
   }
 
-  function updateCarouselArrows() {
-    if (!leftArrow || !rightArrow) return;
-    const atStart = currentIndex <= 0;
-    const atEnd = currentIndex >= panels.length - 1;
+function updateCarouselArrows() {
+  if (!leftArrow || !rightArrow) return;
+  const atStart = currentIndex <= 0;
+  const atEnd = currentIndex >= panels.length - 1;
 
-    leftArrow.classList.toggle("hidden", atStart);
-    rightArrow.classList.toggle("hidden", atEnd);
-    leftArrow.disabled = atStart;
-    rightArrow.disabled = atEnd;
-    leftArrow.setAttribute("aria-hidden", String(atStart));
-    rightArrow.setAttribute("aria-hidden", String(atEnd));
+  leftArrow.classList.toggle("hidden", atStart);
+  rightArrow.classList.toggle("hidden", atEnd);
+  leftArrow.disabled = atStart;
+  rightArrow.disabled = atEnd;
+  leftArrow.setAttribute("aria-hidden", String(atStart));
+  rightArrow.setAttribute("aria-hidden", String(atEnd));
+}
+
+function positionCarouselArrows() {
+  if (!leftArrow || !rightArrow || !panels.length) return;
+
+  const leftPanel = panels[currentIndex - 1];
+  const rightPanel = panels[currentIndex + 1];
+
+  if (leftPanel) {
+    const rect = leftPanel.getBoundingClientRect();
+    const leftSpace = rect.left;
+    leftArrow.style.left = `${clamp(leftSpace / 2, 14, 120)}px`;
   }
+
+  if (rightPanel) {
+    const rect = rightPanel.getBoundingClientRect();
+    const rightSpace = window.innerWidth - rect.right;
+    rightArrow.style.right = `${clamp(rightSpace / 2, 14, 120)}px`;
+  }
+}
 
   function setActive(index) {
     currentIndex = clamp(index, 0, panels.length - 1);
@@ -631,6 +650,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHelpContent();
     }
     updateCarouselArrows();
+    positionCarouselArrows();
   }
 
   function positionPlayButton() {
@@ -825,6 +845,7 @@ document.addEventListener("DOMContentLoaded", () => {
       applyTranslateX(targetX);
     }
     positionPlayButton();
+    positionCarouselArrows();
     drawAllOnce();
   }
 
@@ -1979,6 +2000,7 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(() => {
       centerActive(false);
       positionPlayButton();
+      positionCarouselArrows();
     });
   });
 
@@ -2250,6 +2272,7 @@ document.addEventListener("DOMContentLoaded", () => {
   requestAnimationFrame(() => {
     centerActive(false);
     positionPlayButton();
+    positionCarouselArrows();
     requestAnimationFrame(() => centerActive(false));
   });
 
