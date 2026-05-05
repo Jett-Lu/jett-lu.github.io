@@ -240,6 +240,10 @@ body {
 }
 
 @media (max-width: 1800px) {
+  #game-container:not(.expanded) .carousel-arrow {
+    display: block;
+  }
+
   .game-panel.distance-2 {
     visibility: hidden;
     opacity: 0;
@@ -500,6 +504,14 @@ button:focus-visible,
 }
 
 @media (max-width: 768px) {
+  #game-container {
+    --active-panel-width: min(
+      var(--game-max-w),
+      calc(100vw - clamp(88px, 22vw, 120px)),
+      calc((100vh - var(--game-ui-chrome)) * (var(--game-aspect-w) / var(--game-aspect-h)))
+    );
+  }
+
   .menu {
     position: fixed;
     top: 0;
@@ -548,10 +560,6 @@ button:focus-visible,
 
   .menu ul.show {
     display: flex;
-  }
-
-  #game-container:not(.expanded) .carousel-arrow {
-    display: block;
   }
 
   .game-panel {
