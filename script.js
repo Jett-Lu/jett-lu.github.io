@@ -315,6 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let dragRaf = 0;
   let dragMinX = 0;
   let dragMaxX = 0;
+  let dragStartTranslateX = 0;
 
   const CAROUSEL_BASE_DURATION = 160;
 
@@ -2048,6 +2049,7 @@ document.addEventListener("DOMContentLoaded", () => {
       dragMoved = false;
       dragStartX = event.clientX;
       queuedDragX = getTranslateX();
+      dragStartTranslateX = queuedDragX;
       const prevTargetX = getProjectedTargetXForIndex(currentIndex - 1);
       const nextTargetX = getProjectedTargetXForIndex(currentIndex + 1);
       dragMinX = Math.min(prevTargetX ?? queuedDragX, nextTargetX ?? queuedDragX);
@@ -2065,7 +2067,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!isDragging) return;
 
       const dx = event.clientX - dragStartX;
-      if (Math.abs(dx) > 3) dragMoved = true;
       const isPhone = window.matchMedia("(max-width: 768px)").matches;
       const dragMultiplier = isPhone ? 1 : 0.72;
       const adjustedDx = dx * dragMultiplier;
@@ -2081,6 +2082,7 @@ document.addEventListener("DOMContentLoaded", () => {
         queuedDragX += adjustedDx;
       }
 
+      if (Math.abs(queuedDragX - dragStartTranslateX) > 3) dragMoved = true;
       dragStartX = event.clientX;
 
       if (!dragRaf) {
@@ -2110,6 +2112,8 @@ document.addEventListener("DOMContentLoaded", () => {
         Date.now() >= suppressPanelClickUntil
       ) {
         selectCarouselIndex(pendingPanelIndex, true);
+      } else {
+        centerActive(true, getCarouselDuration());
       }
       pendingPanelIndex = null;
     };
