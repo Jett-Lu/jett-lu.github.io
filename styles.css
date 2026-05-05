@@ -120,8 +120,8 @@ body {
   --game-aspect-h: 3;
   --game-max-w: 400px;
   --game-ui-chrome: 220px;
-  --carousel-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --carousel-duration: 520ms;
+  --carousel-ease: linear;
+  --carousel-duration: 160ms;
   --active-panel-width: min(
     var(--game-max-w),
     92vw,
@@ -589,8 +589,8 @@ canvas {
   opacity: 0;
   transform: translateY(20px);
   transition:
-    opacity 400ms ease,
-    transform 400ms ease,
+    opacity 500ms ease,
+    transform 500ms ease,
     border-color 0.1s ease,
     border-width 0.2s ease 0.1s;
 }
@@ -598,15 +598,4 @@ canvas {
 .js .fade-in-section.is-visible {
   opacity: 1;
   transform: translateY(0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
-  .js .fade-in-section,
-  #fixed-name-title {
-    transition: none !important;
-  }
 }

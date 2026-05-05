@@ -1,3 +1,247 @@
+const PROJECTS_CACHE_KEY = "jl_projects_cache_v1";
+const PROJECTS_CACHE_TTL_MS = 1000 * 60 * 30;
+const PROJECTS_QUEUE_KEY = "jl_projects_queue_v1";
+const PROJECT_LIMIT = 3;
+const FEATURED_TOPIC = "featured";
+const GITHUB_REPOS_URL = "https://api.github.com/users/Jett-Lu/repos?per_page=100&sort=updated&type=owner";
+const GITHUB_API_HEADERS = { Accept: "application/vnd.github+json" };
+const GITHUB_PROFILE_URL = "https://github.com/Jett-Lu?tab=repositories";
+
+function readProjectsCache() {
+  try {
+    const raw = sessionStorage.getItem(PROJECTS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.t !== "number" || !Array.isArray(parsed.repos)) return null;
+    if (Date.now() - parsed.t > PROJECTS_CACHE_TTL_MS) return null;
+    return parsed.repos;
+  } catch {
+    return null;
+  }
+}
+
+function writeProjectsCache(repos) {
+  try {
+    sessionStorage.setItem(PROJECTS_CACHE_KEY, JSON.stringify({ t: Date.now(), repos }));
+  } catch {
+    // ignore
+  }
+}
+
+function shuffleList(values) {
+  const shuffled = [...values];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function readProjectsQueue() {
+  try {
+    const raw = sessionStorage.getItem(PROJECTS_QUEUE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.poolKey !== "string" || !Array.isArray(parsed.remainingIds)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeProjectsQueue(poolKey, remainingIds) {
+  try {
+    sessionStorage.setItem(PROJECTS_QUEUE_KEY, JSON.stringify({ poolKey, remainingIds }));
+  } catch {
+    // ignore
+  }
+}
+
+function selectProjectWindow(repos) {
+  if (repos.length === 0) return [];
+
+  const repoIds = repos.map((repo) => repo.id);
+  const poolKey = repoIds.join(",");
+  const savedQueue = readProjectsQueue();
+  let remainingIds =
+    savedQueue && savedQueue.poolKey === poolKey
+      ? savedQueue.remainingIds.filter((id) => repoIds.includes(id))
+      : [];
+
+  const selectedIds = [];
+  const targetSize = Math.min(PROJECT_LIMIT, repos.length);
+
+  while (selectedIds.length < targetSize) {
+    if (!remainingIds.length) {
+      remainingIds = shuffleList(repoIds);
+    }
+
+    const nextId = remainingIds.shift();
+    if (!selectedIds.includes(nextId)) {
+      selectedIds.push(nextId);
+    }
+  }
+
+  writeProjectsQueue(poolKey, remainingIds);
+
+  return selectedIds
+    .map((id) => repos.find((repo) => repo.id === id))
+    .filter(Boolean);
+}
+
+function sanitizeRepoUrl(value) {
+  try {
+    const url = new URL(String(value));
+    const path = url.pathname.toLowerCase();
+    if (url.protocol === "https:" && url.hostname === "github.com" && path.startsWith("/jett-lu/")) {
+      return url.toString();
+    }
+  } catch {
+    // ignore
+  }
+  return GITHUB_PROFILE_URL;
+}
+
+function sanitizeLanguagesUrl(value) {
+  try {
+    const url = new URL(String(value));
+    const path = url.pathname.toLowerCase();
+    if (url.protocol === "https:" && url.hostname === "api.github.com" && path.startsWith("/repos/jett-lu/")) {
+      return url.toString();
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function hasFeaturedTopic(repo) {
+  return Array.isArray(repo.topics) && repo.topics.some((topic) => String(topic).toLowerCase() === FEATURED_TOPIC);
+}
+
+function hasProjectSummary(repo) {
+  return Boolean(repo.description || repo.homepage);
+}
+
+function compareRepos(a, b) {
+  const archivedDiff = Number(a.archived) - Number(b.archived);
+  if (archivedDiff !== 0) return archivedDiff;
+
+  const summaryDiff = Number(hasProjectSummary(b)) - Number(hasProjectSummary(a));
+  if (summaryDiff !== 0) return summaryDiff;
+
+  const updatedDiff = new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+  if (updatedDiff !== 0) return updatedDiff;
+
+  const starsDiff = (b.stargazers_count || 0) - (a.stargazers_count || 0);
+  if (starsDiff !== 0) return starsDiff;
+
+  return a.name.localeCompare(b.name);
+}
+
+function createProjectCard(repo, langList) {
+  const card = document.createElement("article");
+  card.className = "project-card";
+
+  const title = document.createElement("h3");
+  title.textContent = repo.name;
+
+  const description = document.createElement("p");
+  description.textContent = repo.description || "No description provided.";
+
+  const languages = document.createElement("p");
+  const languagesLabel = document.createElement("strong");
+  languagesLabel.textContent = "Languages:";
+  languages.append(languagesLabel, ` ${langList}`);
+
+  const link = document.createElement("a");
+  link.href = sanitizeRepoUrl(repo.html_url);
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = "View on GitHub →";
+
+  card.append(title, description, languages, link);
+  return card;
+}
+
+function renderProjectFallback(container, message) {
+  const text = document.createElement("p");
+  text.textContent = `${message} `;
+
+  const link = document.createElement("a");
+  link.className = "text-link";
+  link.href = GITHUB_PROFILE_URL;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = "Browse all repositories on GitHub.";
+
+  text.appendChild(link);
+  container.replaceChildren(text);
+}
+
+async function loadProjects(container, opts = { force: false }) {
+  if (!container) return;
+
+  const loading = document.createElement("p");
+  loading.textContent = "Loading featured projects...";
+  container.replaceChildren(loading);
+
+  try {
+    let allRepos = null;
+
+    if (!opts.force) {
+      const cached = readProjectsCache();
+      if (cached) allRepos = cached;
+    }
+
+    if (!allRepos) {
+      const res = await fetch(GITHUB_REPOS_URL, { headers: GITHUB_API_HEADERS });
+      if (!res.ok) throw new Error(`GitHub API request failed with status ${res.status}`);
+      allRepos = await res.json();
+      if (!Array.isArray(allRepos)) throw new Error("GitHub API returned an unexpected response.");
+      writeProjectsCache(allRepos);
+    }
+
+    const repos = allRepos.filter((repo) => repo && !repo.fork);
+    const featuredRepos = repos.filter(hasFeaturedTopic).sort(compareRepos);
+    const fallbackRepos = repos.filter((repo) => !hasFeaturedTopic(repo)).sort(compareRepos);
+    const repoPool = featuredRepos.length ? featuredRepos : fallbackRepos;
+    const selected = selectProjectWindow(repoPool);
+
+    container.replaceChildren();
+
+    for (const repo of selected) {
+      let langList = "N/A";
+
+      try {
+        const langCacheKey = `jl_lang_${repo.name}`;
+        const cachedLang = sessionStorage.getItem(langCacheKey);
+        if (cachedLang) {
+          langList = cachedLang;
+        } else {
+          const languagesUrl = sanitizeLanguagesUrl(repo.languages_url);
+          if (!languagesUrl) throw new Error("Repository languages URL is not trusted.");
+          const langRes = await fetch(languagesUrl, { headers: GITHUB_API_HEADERS });
+          if (!langRes.ok) throw new Error(`GitHub API request failed with status ${langRes.status}`);
+          const langs = await langRes.json();
+          langList = Object.keys(langs || {}).join(", ") || "N/A";
+          sessionStorage.setItem(langCacheKey, langList);
+        }
+      } catch {
+        langList = "N/A";
+      }
+
+      container.appendChild(createProjectCard(repo, langList));
+    }
+
+    if (!selected.length) {
+      renderProjectFallback(container, "No featured projects found.");
+    }
+  } catch {
+    renderProjectFallback(container, "Failed to load featured projects.");
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const HIGH_SCORE_KEYS = {
     asteroids: "jl_highscore_asteroids",
@@ -14,14 +258,12 @@ document.addEventListener("DOMContentLoaded", () => {
     snake: 4
   };
 
-  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const hamburger = document.getElementById("hamburger");
   const navLinks = document.getElementById("nav-links");
   const navItems = navLinks ? Array.from(navLinks.querySelectorAll("a")) : [];
   const fadeEls = document.querySelectorAll(".fade-in-section");
   const projectContainer = document.getElementById("project-container");
   const refreshBtn = document.getElementById("refresh-projects");
-  const loadProjectCards = window.portfolioProjects?.loadProjects;
   const gameContainer = document.getElementById("game-container");
   const floatingTitle = document.getElementById("fixed-name-title");
   const viewport = document.getElementById("game-carousel-viewport");
@@ -69,13 +311,12 @@ document.addEventListener("DOMContentLoaded", () => {
   let carouselAnimating = false;
   let carouselAnimationTimer = 0;
   let carouselAnimationRaf = 0;
-  let carouselX = 0;
   let queuedDragX = 0;
   let dragRaf = 0;
-  let dragVelocity = 0;
-  let dragLastMoveMs = 0;
+  let dragMinX = 0;
+  let dragMaxX = 0;
 
-  const CAROUSEL_BASE_DURATION = 520;
+  const CAROUSEL_BASE_DURATION = 160;
 
   const laneCount = 3;
   const playerCarArt = "[=]";
@@ -205,7 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function setFadeInState() {
-    if (prefersReducedMotion.matches || typeof IntersectionObserver !== "function") {
+    if (typeof IntersectionObserver !== "function") {
       fadeEls.forEach((el) => el.classList.add("is-visible"));
       return;
     }
@@ -338,6 +579,25 @@ document.addEventListener("DOMContentLoaded", () => {
     return Math.max(a, Math.min(b, n));
   }
 
+  function applyDragResistance(value, delta, min, max) {
+    if (!delta) return value;
+
+    const direction = delta < 0 ? -1 : 1;
+    const limit = direction < 0 ? min : max;
+    const remaining = direction < 0 ? value - limit : limit - value;
+    if (remaining <= 0.5) return value;
+
+    const resistanceZone = 300;
+    const t = clamp(remaining / resistanceZone, 0, 1);
+    const resistanceScale = 0.12 + 0.88 * t;
+    const scaledDelta = Math.abs(delta) * resistanceScale;
+    const softenedMove =
+      remaining * (1 - Math.exp(-scaledDelta / Math.max(remaining, 1)));
+    const move = Math.min(softenedMove, Math.max(remaining - 0.5, 0));
+
+    return value + direction * move;
+  }
+
   function updateCarouselArrows() {
     if (!leftArrow || !rightArrow) return;
     const atStart = currentIndex <= 0;
@@ -450,14 +710,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function easeCarousel(t) {
-    return 1 - Math.pow(1 - t, 4);
+    return t;
+  }
+
+  function getCarouselDuration(distance = 1) {
+    return CAROUSEL_BASE_DURATION + Math.min(Math.max(distance - 1, 0), 2) * 30;
   }
 
   function applyTranslateX(x) {
     if (!carousel) return;
-    carouselX = x;
     carousel.style.transition = "none";
-    carousel.style.transform = `translate3d(${x.toFixed(2)}px, 0, 0)`;
+    carousel.style.transform = `translate3d(${x}px, 0, 0)`;
   }
 
   function stopCarouselAnimation() {
@@ -512,6 +775,28 @@ document.addEventListener("DOMContentLoaded", () => {
     applyTranslateX(x);
   }
 
+  function getProjectedTargetXForIndex(index) {
+    if (!carousel || !panels.length) return;
+    const targetIndex = clamp(index, 0, panels.length - 1);
+    const originalIndex = currentIndex;
+    const panelTransitions = panels.map((panel) => panel.style.transition);
+
+    panels.forEach((panel) => {
+      panel.style.transition = "none";
+    });
+    setActive(targetIndex);
+
+    const targetX = getTargetXForIndex(targetIndex);
+
+    setActive(originalIndex);
+    carousel.offsetWidth;
+    panels.forEach((panel, panelIndex) => {
+      panel.style.transition = panelTransitions[panelIndex];
+    });
+
+    return targetX;
+  }
+
   function getTargetXForIndex(index) {
     if (!viewport || !carousel || !panels.length) return;
     const targetIndex = clamp(index, 0, panels.length - 1);
@@ -526,7 +811,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function centerActive(animate, duration = CAROUSEL_BASE_DURATION) {
-    const targetX = getActiveTargetX();
+    const targetX = getProjectedTargetXForIndex(currentIndex) ?? getActiveTargetX();
     if (typeof targetX !== "number") return;
     setTranslateX(targetX, animate, duration);
   }
@@ -534,7 +819,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function finishCarouselAnimation() {
     carouselAnimating = false;
     stopCarouselAnimation();
-    const targetX = getActiveTargetX();
+    const targetX = getProjectedTargetXForIndex(currentIndex) ?? getActiveTargetX();
     if (!isDragging && typeof targetX === "number") {
       applyTranslateX(targetX);
     }
@@ -554,15 +839,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const next = clamp(index, 0, panels.length - 1);
     if (next === currentIndex) return;
 
+    const shouldAnimate = Boolean(animate);
     const distance = Math.abs(next - currentIndex);
-    const duration = animate
-      ? CAROUSEL_BASE_DURATION + Math.min(Math.max(distance - 1, 0), 2) * 90
-      : 0;
+    const duration = shouldAnimate ? getCarouselDuration(distance) : 0;
+    const targetX = getProjectedTargetXForIndex(next);
 
     setActive(next);
-    centerActive(animate, duration);
+    if (typeof targetX === "number") {
+      setTranslateX(targetX, shouldAnimate, duration);
+    } else {
+      centerActive(shouldAnimate, duration);
+    }
     positionPlayButton();
-    if (animate) {
+    if (shouldAnimate) {
       waitForCarouselAnimation(duration);
     } else {
       drawAllOnce();
@@ -595,8 +884,9 @@ document.addEventListener("DOMContentLoaded", () => {
     bestIdx = clamp(bestIdx, currentIndex - maxStep, currentIndex + maxStep);
 
     if (bestIdx === currentIndex) {
-      centerActive(true, CAROUSEL_BASE_DURATION);
-      waitForCarouselAnimation(CAROUSEL_BASE_DURATION);
+      const duration = getCarouselDuration();
+      centerActive(true, duration);
+      waitForCarouselAnimation(duration);
       positionPlayButton();
       return;
     }
@@ -1675,14 +1965,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  if (refreshBtn && loadProjectCards) {
-    refreshBtn.addEventListener("click", () => loadProjectCards(projectContainer, { force: true }));
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => loadProjects(projectContainer, { force: true }));
   }
 
   setFadeInState();
-  if (loadProjectCards) {
-    loadProjectCards(projectContainer, { force: false });
-  }
+  loadProjects(projectContainer, { force: false });
 
   window.addEventListener("scroll", requestTitleUpdate, { passive: true });
   window.addEventListener("resize", () => {
@@ -1738,6 +2026,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (viewport) {
     viewport.addEventListener("keydown", (event) => {
       if (helpOpen) return;
+      if (!isPlayMode() && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+        event.preventDefault();
+        moveCarousel(event.key === "ArrowLeft" ? -1 : 1);
+        return;
+      }
+
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         if (playBtn) playBtn.click();
@@ -1753,10 +2047,11 @@ document.addEventListener("DOMContentLoaded", () => {
       isDragging = true;
       dragMoved = false;
       dragStartX = event.clientX;
-      dragLastMoveMs = event.timeStamp || performance.now();
-      dragVelocity = 0;
-      carouselX = getTranslateX();
-      queuedDragX = carouselX;
+      queuedDragX = getTranslateX();
+      const prevTargetX = getProjectedTargetXForIndex(currentIndex - 1);
+      const nextTargetX = getProjectedTargetXForIndex(currentIndex + 1);
+      dragMinX = Math.min(prevTargetX ?? queuedDragX, nextTargetX ?? queuedDragX);
+      dragMaxX = Math.max(prevTargetX ?? queuedDragX, nextTargetX ?? queuedDragX);
       pendingPanelIndex = panels.indexOf(event.target.closest(".game-panel"));
       try {
         carousel.setPointerCapture(event.pointerId);
@@ -1773,26 +2068,17 @@ document.addEventListener("DOMContentLoaded", () => {
       if (Math.abs(dx) > 3) dragMoved = true;
       const isPhone = window.matchMedia("(max-width: 768px)").matches;
       const dragMultiplier = isPhone ? 1 : 0.72;
-      let adjustedDx = dx * dragMultiplier;
+      const adjustedDx = dx * dragMultiplier;
 
-      if ((currentIndex === 0 && adjustedDx > 0) || (currentIndex === panels.length - 1 && adjustedDx < 0)) {
-        adjustedDx *= 0.28;
-      }
-
-      const now = event.timeStamp || performance.now();
-      const dt = Math.max(8, now - dragLastMoveMs);
-      dragVelocity = adjustedDx / dt;
-      dragLastMoveMs = now;
-      queuedDragX += adjustedDx;
-
-      const prevTargetX = getTargetXForIndex(currentIndex - 1);
-      const nextTargetX = getTargetXForIndex(currentIndex + 1);
-      if (typeof prevTargetX === "number" && typeof nextTargetX === "number") {
-        queuedDragX = clamp(
+      if (dragMinX !== dragMaxX) {
+        queuedDragX = applyDragResistance(
           queuedDragX,
-          Math.min(prevTargetX, nextTargetX),
-          Math.max(prevTargetX, nextTargetX)
+          adjustedDx,
+          dragMinX,
+          dragMaxX
         );
+      } else {
+        queuedDragX += adjustedDx;
       }
 
       dragStartX = event.clientX;
@@ -1816,8 +2102,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       if (dragMoved) {
         suppressPanelClickUntil = Date.now() + 150;
-        const momentumPx = clamp(dragVelocity * 260, -180, 180);
-        snapToNearest(momentumPx, 1);
+        snapToNearest(0, 1);
       } else if (
         pendingPanelIndex !== null &&
         pendingPanelIndex !== -1 &&
@@ -1827,16 +2112,10 @@ document.addEventListener("DOMContentLoaded", () => {
         selectCarouselIndex(pendingPanelIndex, true);
       }
       pendingPanelIndex = null;
-      dragVelocity = 0;
     };
 
     carousel.addEventListener("pointerup", endDrag);
     carousel.addEventListener("pointercancel", endDrag);
-    carousel.addEventListener("transitionend", (event) => {
-      if (event.target === carousel && event.propertyName === "transform") {
-        finishCarouselAnimation();
-      }
-    });
   }
 
   panels.forEach((panel, index) => {
