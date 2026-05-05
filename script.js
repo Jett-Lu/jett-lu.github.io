@@ -556,7 +556,7 @@ document.addEventListener("DOMContentLoaded", () => {
     helpOverlay.style.visibility = "visible";
     helpOpen = true;
     updateHelpButton();
-    if (helpOverlay) helpOverlay.focus();
+    helpOverlay.focus({ preventScroll: true });
   }
 
   function showOverlay(score, highScore) {
@@ -2188,7 +2188,9 @@ function positionCarouselArrows() {
   }
 
   if (helpBtn) {
-    helpBtn.addEventListener("click", () => {
+    helpBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+
       if (helpOpen) {
         closeHelpOverlay();
         return;
