@@ -599,37 +599,18 @@ document.addEventListener("DOMContentLoaded", () => {
     return value + direction * move;
   }
 
-function updateCarouselArrows() {
-  if (!leftArrow || !rightArrow) return;
-  const atStart = currentIndex <= 0;
-  const atEnd = currentIndex >= panels.length - 1;
+  function updateCarouselArrows() {
+    if (!leftArrow || !rightArrow) return;
+    const atStart = currentIndex <= 0;
+    const atEnd = currentIndex >= panels.length - 1;
 
-  leftArrow.classList.toggle("hidden", atStart);
-  rightArrow.classList.toggle("hidden", atEnd);
-  leftArrow.disabled = atStart;
-  rightArrow.disabled = atEnd;
-  leftArrow.setAttribute("aria-hidden", String(atStart));
-  rightArrow.setAttribute("aria-hidden", String(atEnd));
-}
-
-function positionCarouselArrows() {
-  if (!leftArrow || !rightArrow || !panels.length) return;
-
-  const leftPanel = panels[currentIndex - 1];
-  const rightPanel = panels[currentIndex + 1];
-
-  if (leftPanel) {
-    const rect = leftPanel.getBoundingClientRect();
-    const leftSpace = rect.left;
-    leftArrow.style.left = `${clamp(leftSpace / 2, 14, 120)}px`;
+    leftArrow.classList.toggle("hidden", atStart);
+    rightArrow.classList.toggle("hidden", atEnd);
+    leftArrow.disabled = atStart;
+    rightArrow.disabled = atEnd;
+    leftArrow.setAttribute("aria-hidden", String(atStart));
+    rightArrow.setAttribute("aria-hidden", String(atEnd));
   }
-
-  if (rightPanel) {
-    const rect = rightPanel.getBoundingClientRect();
-    const rightSpace = window.innerWidth - rect.right;
-    rightArrow.style.right = `${clamp(rightSpace / 2, 14, 120)}px`;
-  }
-}
 
   function setActive(index) {
     currentIndex = clamp(index, 0, panels.length - 1);
@@ -650,13 +631,6 @@ function positionCarouselArrows() {
       renderHelpContent();
     }
     updateCarouselArrows();
-    positionCarouselArrows();
-  }
-
-  function positionPlayButton() {
-    const controls = document.getElementById("game-controls");
-    if (!controls) return;
-    controls.style.removeProperty("top");
   }
 
   function getActiveCanvas() {
@@ -844,8 +818,6 @@ function positionCarouselArrows() {
     if (!isDragging && typeof targetX === "number") {
       applyTranslateX(targetX);
     }
-    positionPlayButton();
-    positionCarouselArrows();
     drawAllOnce();
   }
 
@@ -872,7 +844,6 @@ function positionCarouselArrows() {
     } else {
       centerActive(shouldAnimate, duration);
     }
-    positionPlayButton();
     if (shouldAnimate) {
       waitForCarouselAnimation(duration);
     } else {
@@ -880,40 +851,21 @@ function positionCarouselArrows() {
     }
   }
 
-  function snapToNearest(momentumPx = 0, maxStep = panels.length) {
-    if (!viewport || panels.length === 0) return;
+  function getDragReleaseTargetIndex() {
+    const dragDelta = queuedDragX - dragStartTranslateX;
+    if (Math.abs(dragDelta) <= 3) return currentIndex;
 
-    const viewportRect = viewport.getBoundingClientRect();
-    const viewportCenter = viewportRect.left + viewportRect.width / 2 - momentumPx;
+    const direction = dragDelta > 0 ? -1 : 1;
+    const targetIndex = clamp(currentIndex + direction, 0, panels.length - 1);
+    if (targetIndex === currentIndex) return currentIndex;
 
-    let bestIdx = currentIndex;
-    let bestDist = Infinity;
+    const targetX = getProjectedTargetXForIndex(targetIndex);
+    if (typeof targetX !== "number") return currentIndex;
 
-    panels.forEach((panel, index) => {
-      if (panel.classList.contains("distance-far")) return;
-      const panelStyle = window.getComputedStyle(panel);
-      if (panelStyle.display === "none" || panelStyle.visibility === "hidden") return;
+    const travel = Math.abs(targetX - dragStartTranslateX);
+    const threshold = clamp(travel * 0.25, 32, 120);
 
-      const rect = panel.getBoundingClientRect();
-      const center = rect.left + rect.width / 2;
-      const distance = Math.abs(center - viewportCenter);
-      if (distance < bestDist) {
-        bestDist = distance;
-        bestIdx = index;
-      }
-    });
-
-    bestIdx = clamp(bestIdx, currentIndex - maxStep, currentIndex + maxStep);
-
-    if (bestIdx === currentIndex) {
-      const duration = getCarouselDuration();
-      centerActive(true, duration);
-      waitForCarouselAnimation(duration);
-      positionPlayButton();
-      return;
-    }
-
-    selectCarouselIndex(bestIdx, true);
+    return Math.abs(dragDelta) >= threshold ? targetIndex : currentIndex;
   }
 
   function updateStoredHighScore(key, currentHigh, candidate) {
@@ -926,13 +878,6 @@ function positionCarouselArrows() {
     if (!astCanvas) return;
     astCanvas.width = 400;
     astCanvas.height = 600;
-  }
-
-  function wrapPosition(obj, width, height) {
-    if (obj.x < 0) obj.x += width;
-    if (obj.x > width) obj.x -= width;
-    if (obj.y < 0) obj.y += height;
-    if (obj.y > height) obj.y -= height;
   }
 
   function makeAsteroidFromEdge(index, speedBoost) {
@@ -1264,12 +1209,6 @@ function positionCarouselArrows() {
     hideOverlay();
   }
 
-  function pauseInvaders() {
-    if (inv.gameOver) return;
-    invPaused = true;
-    showPauseOverlay();
-  }
-
   function resumeInvadersIfPaused() {
     if (!invPaused) return;
     invPaused = false;
@@ -1414,12 +1353,6 @@ function positionCarouselArrows() {
       inv.high = updateStoredHighScore(HIGH_SCORE_KEYS.invaders, inv.high, inv.score);
       showOverlay(inv.score, inv.high);
     }
-  }
-
-  function pauseBrick() {
-    if (brick.gameOver) return;
-    brickPaused = true;
-    showPauseOverlay();
   }
 
   function resumeBrickIfPaused() {
@@ -1999,8 +1932,6 @@ function positionCarouselArrows() {
     requestTitleUpdate();
     requestAnimationFrame(() => {
       centerActive(false);
-      positionPlayButton();
-      positionCarouselArrows();
     });
   });
 
@@ -2018,7 +1949,6 @@ function positionCarouselArrows() {
 
     requestAnimationFrame(() => {
       centerActive(false);
-      positionPlayButton();
     });
   });
 
@@ -2126,7 +2056,12 @@ function positionCarouselArrows() {
       }
       if (dragMoved) {
         suppressPanelClickUntil = Date.now() + 150;
-        snapToNearest(0, 1);
+        const targetIndex = getDragReleaseTargetIndex();
+        if (targetIndex === currentIndex) {
+          centerActive(true, getCarouselDuration());
+        } else {
+          selectCarouselIndex(targetIndex, true);
+        }
       } else if (
         pendingPanelIndex !== null &&
         pendingPanelIndex !== -1 &&
@@ -2182,7 +2117,6 @@ function positionCarouselArrows() {
       updatePlayButton();
       requestAnimationFrame(() => {
         centerActive(false);
-        positionPlayButton();
       });
     });
   }
@@ -2273,8 +2207,6 @@ function positionCarouselArrows() {
 
   requestAnimationFrame(() => {
     centerActive(false);
-    positionPlayButton();
-    positionCarouselArrows();
     requestAnimationFrame(() => centerActive(false));
   });
 
