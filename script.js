@@ -1,6 +1,27 @@
 const PROJECTS_CACHE_KEY = "jl_projects_cache_v1";
 const PROJECTS_CACHE_TTL_MS = 1000 * 60 * 30;
-const PROJECTS_QUEUE_KEY = "jl_projects_queue_v1";
+const PROJECT_DETAILS = {
+  "computer-vision-predictive-surveillance-system": {
+    title: "Predictive Surveillance System",
+    description: "Detects unusual activity in video feeds with OpenCV and machine learning, generating real-time alerts for review."
+  },
+  "freertos-emergency-control-system": {
+    title: "Real-Time Emergency Control",
+    description: "An embedded control system using FreeRTOS on an NXP microcontroller, with interrupt-driven emergency handling and deterministic multitasking."
+  },
+  "intelli-guard": {
+    title: "IntelliGuard",
+    description: "A Python facial recognition door lock built with OpenCV for lightweight security setups."
+  },
+  "opencv-anomaly-monitor": { title: "OpenCV Anomaly Monitor" },
+  "shopping-client-server-cs": { title: "Concurrent Shopping System" },
+  "jett-lu.github.io": { title: "Interactive Portfolio" }
+};
+const PINNED_PROJECTS = [
+  "computer-vision-predictive-surveillance-system",
+  "freertos-emergency-control-system",
+  "intelli-guard"
+];
 const PROJECT_LIMIT = 3;
 const FEATURED_TOPIC = "featured";
 const GITHUB_REPOS_URL = "https://api.github.com/users/Jett-Lu/repos?per_page=100&sort=updated&type=owner";
@@ -28,67 +49,19 @@ function writeProjectsCache(repos) {
   }
 }
 
-function shuffleList(values) {
-  const shuffled = [...values];
-  for (let i = shuffled.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
+let projectOffset = 0;
 
-function readProjectsQueue() {
-  try {
-    const raw = sessionStorage.getItem(PROJECTS_QUEUE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed.poolKey !== "string" || !Array.isArray(parsed.remainingIds)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function writeProjectsQueue(poolKey, remainingIds) {
-  try {
-    sessionStorage.setItem(PROJECTS_QUEUE_KEY, JSON.stringify({ poolKey, remainingIds }));
-  } catch {
-    // ignore
-  }
-}
-
-function selectProjectWindow(repos) {
-  if (repos.length === 0) return [];
-
-  const repoIds = repos.map((repo) => repo.id);
-  const poolKey = repoIds.join(",");
-  const savedQueue = readProjectsQueue();
-  let remainingIds =
-    savedQueue && savedQueue.poolKey === poolKey
-      ? savedQueue.remainingIds.filter((id) => repoIds.includes(id))
-      : [];
-
-  const selectedIds = [];
-  const targetSize = Math.min(PROJECT_LIMIT, repos.length);
-
-  while (selectedIds.length < targetSize) {
-    if (!remainingIds.length) {
-      remainingIds = shuffleList(repoIds);
-    }
-
-    const nextId = remainingIds.shift();
-    if (!selectedIds.includes(nextId)) {
-      selectedIds.push(nextId);
-    }
-  }
-
-  writeProjectsQueue(poolKey, remainingIds);
-
-  return selectedIds
-    .map((id) => repos.find((repo) => repo.id === id))
+function selectProjectWindow(repos, rotate = false) {
+  const pinned = PINNED_PROJECTS
+    .map((name) => repos.find((repo) => repo.name === name))
     .filter(Boolean);
+  const remaining = repos.filter((repo) => !PINNED_PROJECTS.includes(repo.name));
+  const ordered = [...pinned, ...remaining];
+  if (!ordered.length) return [];
+  projectOffset = rotate ? (projectOffset + PROJECT_LIMIT) % ordered.length : 0;
+  return Array.from({ length: Math.min(PROJECT_LIMIT, ordered.length) },
+    (_, index) => ordered[(projectOffset + index) % ordered.length]);
 }
-
 function sanitizeRepoUrl(value) {
   try {
     const url = new URL(String(value));
@@ -144,10 +117,10 @@ function createProjectCard(repo, langList) {
   card.className = "project-card";
 
   const title = document.createElement("h3");
-  title.textContent = repo.name;
+  title.textContent = PROJECT_DETAILS[repo.name]?.title || repo.name.replace(/[-_]/g, " ");
 
   const description = document.createElement("p");
-  description.textContent = repo.description || "No description provided.";
+  description.textContent = PROJECT_DETAILS[repo.name]?.description || repo.description || "Explore the source code and documentation on GitHub.";
 
   const languages = document.createElement("p");
   const languagesLabel = document.createElement("strong");
@@ -161,6 +134,7 @@ function createProjectCard(repo, langList) {
   link.textContent = "View on GitHub →";
 
   card.append(title, description, languages, link);
+
   return card;
 }
 
@@ -179,12 +153,22 @@ function renderProjectFallback(container, message) {
   container.replaceChildren(text);
 }
 
-async function loadProjects(container, opts = { force: false }) {
-  if (!container) return;
-
-  const loading = document.createElement("p");
-  loading.textContent = "Loading featured projects...";
-  container.replaceChildren(loading);
+async function loadProjects(container, opts = {}) {
+  if (!container || container.getAttribute("aria-busy") === "true") return;
+  container.setAttribute("aria-busy", "true");
+  const refreshButton = document.getElementById("refresh-projects");
+  if (refreshButton) refreshButton.disabled = true;
+  const hasCards = Boolean(container.querySelector(".project-card"));
+  const initialScrollY = window.scrollY;
+  const buttonTop = refreshButton?.getBoundingClientRect().top;
+  const preservePosition = opts.rotate && hasCards && buttonTop >= 0 && buttonTop < window.innerHeight;
+  if (hasCards) {
+    container.style.minHeight = `${container.offsetHeight}px`;
+  } else {
+    const loading = document.createElement("p");
+    loading.textContent = "Loading featured projects...";
+    container.replaceChildren(loading);
+  }
 
   try {
     let allRepos = null;
@@ -205,10 +189,10 @@ async function loadProjects(container, opts = { force: false }) {
     const repos = allRepos.filter((repo) => repo && !repo.fork);
     const featuredRepos = repos.filter(hasFeaturedTopic).sort(compareRepos);
     const fallbackRepos = repos.filter((repo) => !hasFeaturedTopic(repo)).sort(compareRepos);
-    const repoPool = featuredRepos.length ? featuredRepos : fallbackRepos;
-    const selected = selectProjectWindow(repoPool);
+    const repoPool = [...featuredRepos, ...fallbackRepos];
+    const selected = selectProjectWindow(repoPool, opts.rotate);
 
-    container.replaceChildren();
+    const nextCards = document.createDocumentFragment();
 
     for (const repo of selected) {
       let langList = "N/A";
@@ -231,19 +215,40 @@ async function loadProjects(container, opts = { force: false }) {
         langList = "N/A";
       }
 
-      container.appendChild(createProjectCard(repo, langList));
+      nextCards.appendChild(createProjectCard(repo, langList));
     }
 
     if (!selected.length) {
-      renderProjectFallback(container, "No featured projects found.");
+      if (!hasCards) renderProjectFallback(container, "No featured projects found.");
+    } else {
+      const animateRefresh = opts.rotate && hasCards && typeof container.animate === "function"
+        && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (animateRefresh) {
+        await container.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: 140, easing: "ease-out"
+        }).finished.catch(() => {});
+      }
+      container.replaceChildren(nextCards);
+      if (preservePosition && Math.abs(window.scrollY - initialScrollY) < 2) {
+        const shift = refreshButton.getBoundingClientRect().top - buttonTop;
+        if (Math.abs(shift) > 1) window.scrollTo({ top: initialScrollY + shift, behavior: "instant" });
+      }
+      if (animateRefresh) {
+        await container.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: 220, easing: "ease-in"
+        }).finished.catch(() => {});
+      }
     }
   } catch {
-    renderProjectFallback(container, "Failed to load featured projects.");
+    if (!hasCards) renderProjectFallback(container, "Failed to load featured projects.");
+  } finally {
+    container.setAttribute("aria-busy", "false");
+    if (refreshButton) refreshButton.disabled = false;
   }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const HIGH_SCORE_KEYS = {
+const HIGH_SCORE_KEYS = {
     asteroids: "jl_highscore_asteroids",
     car: "jl_highscore_car",
     invaders: "jl_highscore_invaders",
@@ -263,7 +268,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const navItems = navLinks ? Array.from(navLinks.querySelectorAll("a")) : [];
   const fadeEls = document.querySelectorAll(".fade-in-section");
   const projectContainer = document.getElementById("project-container");
-  const refreshBtn = document.getElementById("refresh-projects");
+
   const gameContainer = document.getElementById("game-container");
   const floatingTitle = document.getElementById("fixed-name-title");
   const viewport = document.getElementById("game-carousel-viewport");
@@ -499,7 +504,7 @@ document.addEventListener("DOMContentLoaded", () => {
     helpText.replaceChildren(
       createHelpSection(content.controls),
       createHelpSection(content.summary),
-      createHelpSection("Click or tap the game to resume.", "help-dismiss")
+      createHelpSection("Close Help or press Escape, then choose Play to start.", "help-dismiss")
     );
   }
 
@@ -833,7 +838,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const next = clamp(index, 0, panels.length - 1);
     if (next === currentIndex) return;
 
-    const shouldAnimate = Boolean(animate);
+    const shouldAnimate = Boolean(animate) && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const distance = Math.abs(next - currentIndex);
     const duration = shouldAnimate ? getCarouselDuration(distance) : 0;
     const targetX = getProjectedTargetXForIndex(next);
@@ -1920,15 +1925,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  if (refreshBtn) {
-    refreshBtn.addEventListener("click", () => loadProjects(projectContainer, { force: true }));
-  }
+
 
   setFadeInState();
+  document.getElementById("refresh-projects")?.addEventListener("click", () => {
+    loadProjects(projectContainer, { rotate: true });
+  });
   loadProjects(projectContainer, { force: false });
 
   window.addEventListener("scroll", requestTitleUpdate, { passive: true });
   window.addEventListener("resize", () => {
+    projectContainer?.style.removeProperty("min-height");
     requestTitleUpdate();
     requestAnimationFrame(() => {
       centerActive(false);

@@ -63,7 +63,7 @@
       aria-labelledby="fixed-name-title"
       aria-describedby="game-instructions"
     >
-      <div id="fixed-name-title">Jett Lu</div>
+      <h1 id="fixed-name-title">Jett Lu</h1>
       <p id="game-instructions" class="sr-only">
         Browse the game carousel with the arrow buttons or keyboard arrow keys.
         Press play to open the selected game.
@@ -118,6 +118,8 @@
         <button id="game-help" type="button" aria-label="Show game instructions">Help</button>
       </div>
 
+      <a id="explore-work" href="#projects">Keep scrolling<br /><span aria-hidden="true">↓</span></a>
+
       <div id="game-over" role="dialog" aria-modal="true" aria-hidden="true" hidden>
         <div id="game-over-box">
           <p id="game-over-text" aria-live="polite">Game Over</p>
@@ -142,19 +144,23 @@
     <section id="about" class="content-box fade-in-section">
       <h2>About Me</h2>
       <p>
-        I'm a Master of Engineering student in Electrical & Computer Engineering at the University of Toronto, with a background in software engineering and hands-on experience building AI, automation, and enterprise systems. My technical interests span artificial intelligence, computer vision, distributed systems, and hardware-accelerated computing, particularly the development and deployment of intelligent systems that bridge AI models with real-world software and infrastructure.
+        I'm a Master of Engineering student in Electrical &amp; Computer Engineering at the University of Toronto, with a background in software engineering and hands-on experience building AI, automation, and enterprise systems. My technical interests span artificial intelligence, computer vision, distributed systems, and hardware-accelerated computing, particularly the development and deployment of intelligent systems that bridge AI models with real-world software and infrastructure.
       </p>
       <p>
-        Most recently, I worked as an Applied AI Engineer at Ontario Lottery and Gaming Corporation (OLG), where I engineered and trained computer vision models using TensorFlow, YOLOv8, OpenCV, MediaPipe, and MoveNet for behavioural analysis and safer gambling applications. I also developed AI-powered automation and self-healing workflows using Dynatrace and Playwright, while supporting systems administration, deployment, and validation across enterprise gaming environments.
+        Most recently, I completed my co-op as an AI Systems Engineering Intern at Ontario Lottery and Gaming Corporation (OLG), where I engineered and trained computer vision models using TensorFlow, YOLOv8, OpenCV, MediaPipe, and MoveNet for behavioural analysis and safer gambling applications. I also developed AI-powered automation and self-healing workflows using Dynatrace and Playwright, while supporting systems administration, deployment, and validation across enterprise gaming environments.
       </p>
       <p>
         Previously, I worked as a Software Engineering Associate at the Ontario Ministry of Transportation, developing automation tooling and CI/CD pipeline components for Laboratory Information Management Systems. My broader interests span applied AI, computer vision, software and systems engineering, automation, and distributed systems, with a focus on building intelligent systems that are practical, reliable, and deployable in real-world environments.
+      </p>
     </section>
 
     <section id="projects" class="content-box fade-in-section" aria-labelledby="projects-heading">
       <h2 id="projects-heading">Projects</h2>
       <div id="project-container" class="project-grid" aria-live="polite"></div>
-      <button id="refresh-projects" type="button">Refresh Projects</button>
+      <div class="project-actions">
+        <button id="refresh-projects" type="button">Refresh Projects</button>
+      <a id="all-projects" href="https://github.com/Jett-Lu?tab=repositories" target="_blank" rel="noopener noreferrer">See all projects</a>
+      </div>
       <noscript>
         <p class="no-script-message">
           Featured projects are available on
