@@ -401,9 +401,18 @@ body {
   box-sizing: border-box;
 }
 
-.content-box:hover {
+.content-box:is(#about, #contact) {
+  border-width: 1px;
+}
+
+.content-box:hover,
+.content-box:is(#about, #contact):hover {
   border-color: #000;
   border-width: 2px;
+}
+
+#about {
+  scroll-margin-top: 60px;
 }
 
 #about p {
