@@ -2,20 +2,14 @@ const PROJECTS_CACHE_KEY = "jl_projects_cache_v1";
 const PROJECTS_CACHE_TTL_MS = 1000 * 60 * 30;
 const PROJECT_DETAILS = {
   "computer-vision-predictive-surveillance-system": {
-    title: "Predictive Surveillance System",
     description: "Detects unusual activity in video feeds with OpenCV and machine learning, generating real-time alerts for review."
   },
   "freertos-emergency-control-system": {
-    title: "Real-Time Emergency Control",
     description: "An embedded control system using FreeRTOS on an NXP microcontroller, with interrupt-driven emergency handling and deterministic multitasking."
   },
   "intelli-guard": {
-    title: "IntelliGuard",
     description: "A Python facial recognition door lock built with OpenCV for lightweight security setups."
-  },
-  "opencv-anomaly-monitor": { title: "OpenCV Anomaly Monitor" },
-  "shopping-client-server-cs": { title: "Concurrent Shopping System" },
-  "jett-lu.github.io": { title: "Interactive Portfolio" }
+  }
 };
 const PINNED_PROJECTS = [
   "computer-vision-predictive-surveillance-system",
@@ -117,7 +111,7 @@ function createProjectCard(repo, langList) {
   card.className = "project-card";
 
   const title = document.createElement("h3");
-  title.textContent = PROJECT_DETAILS[repo.name]?.title || repo.name.replace(/[-_]/g, " ");
+  title.textContent = repo.name;
 
   const description = document.createElement("p");
   description.textContent = PROJECT_DETAILS[repo.name]?.description || repo.description || "Explore the source code and documentation on GitHub.";
