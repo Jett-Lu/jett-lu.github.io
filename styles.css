@@ -401,12 +401,12 @@ body {
   box-sizing: border-box;
 }
 
-.content-box:is(#about, #contact) {
+.content-box:is(#about, #projects, #contact) {
   border-width: 1px;
 }
 
 .content-box:hover,
-.content-box:is(#about, #contact):hover {
+.content-box:is(#about, #projects, #contact):hover {
   border-color: #000;
   border-width: 2px;
 }
