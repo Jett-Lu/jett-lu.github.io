@@ -355,6 +355,13 @@ const HIGH_SCORE_KEYS = {
   let obstacles = [];
   let carPaused = false;
   let carGameOver = false;
+  let racingPortal = null;
+  const arcadePortals = {};
+  let arcadeTime = 0;
+  let carDistance = 0;
+  let carVisualLane = 1;
+  let carPreviewFrame = 0;
+  const reduceCarMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   const inv = {
     shipX: 190,
@@ -935,6 +942,7 @@ const HIGH_SCORE_KEYS = {
 
   function drawAsteroids() {
     if (!astCanvas || !astCtx) return;
+    if (arcadePortals.asteroids?.render(ast, { preview: !isPlayMode(), paused: astPaused || ast.gameOver, time: arcadeTime, onUnavailable: drawAsteroids })) return;
 
     astCtx.clearRect(0, 0, astCanvas.width, astCanvas.height);
     astCtx.strokeStyle = "white";
@@ -1103,6 +1111,16 @@ const HIGH_SCORE_KEYS = {
   function drawCarGame() {
     if (!carCanvas || !carCtx) return;
 
+    if (racingPortal?.render({
+      lane: isPlayMode() ? carVisualLane : 1,
+      steer: isPlayMode() ? playerCar.lane - carVisualLane : 0,
+      obstacles,
+      distance: carDistance,
+      score: carScore,
+      highScore: carHighScore,
+      preview: !isPlayMode()
+    })) return;
+
     carCtx.clearRect(0, 0, carCanvas.width, carCanvas.height);
 
     const topW = carCanvas.width / 3;
@@ -1149,6 +1167,8 @@ const HIGH_SCORE_KEYS = {
   function resetCarGame() {
     setCarCanvasSize();
     playerCar.lane = 1;
+    carVisualLane = 1;
+    carDistance = 0;
     obstacles = [];
     carSpeed = 5;
     carScore = 0;
@@ -1167,6 +1187,8 @@ const HIGH_SCORE_KEYS = {
     carHighScore = updateStoredHighScore(HIGH_SCORE_KEYS.car, carHighScore, carScore);
 
     const moveAmount = carSpeed * (deltaTime * 60);
+    carDistance += moveAmount * 0.16;
+    carVisualLane += (playerCar.lane - carVisualLane) * (1 - Math.exp(-22 * deltaTime));
     obstacles.forEach((obstacle) => {
       obstacle.y += moveAmount;
     });
@@ -1183,12 +1205,13 @@ const HIGH_SCORE_KEYS = {
       const obstacleX = getLaneCenterX(obstacle.lane, obstacle.y) - obstacleWidth / 2;
       const obstacleY = obstacle.y - obstacleHeight;
 
-      if (
-        playerX < obstacleX + obstacleWidth &&
+      const collided = racingPortal?.available
+        ? Math.abs(carVisualLane - obstacle.lane) * 3 < 1.65 && Math.abs(playerCar.y - obstacle.y) < 20
+        : playerX < obstacleX + obstacleWidth &&
         playerX + playerWidth > obstacleX &&
         playerY < obstacleY + obstacleHeight &&
-        playerY + playerHeight > obstacleY
-      ) {
+        playerY + playerHeight > obstacleY;
+      if (collided) {
         carGameOver = true;
         showOverlay(carScore, carHighScore);
         break;
@@ -1260,6 +1283,7 @@ const HIGH_SCORE_KEYS = {
 
   function drawInvaders() {
     if (!invCanvas || !invCtx) return;
+    if (arcadePortals.invaders?.render(inv, { preview: !isPlayMode(), paused: invPaused || inv.gameOver, time: arcadeTime, onUnavailable: drawInvaders })) return;
 
     invCtx.clearRect(0, 0, invCanvas.width, invCanvas.height);
     invCtx.strokeStyle = "white";
@@ -1391,6 +1415,7 @@ const HIGH_SCORE_KEYS = {
 
   function drawBrick() {
     if (!brickCanvas || !brickCtx) return;
+    if (arcadePortals.brick?.render(brick, { preview: !isPlayMode(), paused: brickPaused || brick.gameOver, time: arcadeTime, onUnavailable: drawBrick })) return;
 
     brickCtx.clearRect(0, 0, brickCanvas.width, brickCanvas.height);
     brickCtx.strokeStyle = "white";
@@ -1538,6 +1563,7 @@ const HIGH_SCORE_KEYS = {
 
   function drawSnake() {
     if (!snakeCanvas || !snakeCtx) return;
+    if (arcadePortals.snake?.render(snake, { preview: !isPlayMode(), paused: snakePaused || snake.gameOver, time: arcadeTime, onUnavailable: drawSnake })) return;
 
     snakeCtx.clearRect(0, 0, snakeCanvas.width, snakeCanvas.height);
     snakeCtx.strokeStyle = "white";
@@ -1885,11 +1911,21 @@ const HIGH_SCORE_KEYS = {
     if (!lastCarFrame) lastCarFrame = ts;
     const dt = Math.min((ts - lastCarFrame) / 1000, 0.05);
     lastCarFrame = ts;
+    if (!document.hidden && !reduceCarMotion.matches) arcadeTime += dt;
 
     if (isPlayMode()) {
       const activeGame = getActiveGame();
       activeGame?.update(dt);
       activeGame?.draw();
+    } else if (!document.hidden && !reduceCarMotion.matches) {
+      // Animate only the selected, visible preview, capped at 30fps.
+      const activeGame = getActiveGame();
+      const portal = currentIndex === GAME_INDEX.car ? racingPortal : arcadePortals[activeGame?.key];
+      if (portal?.visible && currentIndex === GAME_INDEX.car) carDistance += dt * 9;
+      if (portal?.visible && ts - carPreviewFrame > 33) {
+        activeGame?.draw();
+        carPreviewFrame = ts;
+      }
     }
 
     requestAnimationFrame(loop);
@@ -2213,4 +2249,23 @@ const HIGH_SCORE_KEYS = {
 
   requestAnimationFrame(loop);
   requestTitleUpdate();
+
+  // Keep the 2D game available if WebGL or the optional 3D module cannot load.
+  import("./racing-portal.js?v=2").then(({ createRacingPortal }) => {
+    racingPortal = createRacingPortal(carCanvas);
+    drawCarGame();
+  }).catch((error) => {
+    console.warn("3D racing unavailable; using the 2D racing view.", error);
+  });
+  import("./arcade-portal.js?v=2").then(({ createArcadePortal }) => {
+    for (const game of games) {
+      if (game.key === "car") continue;
+      try {
+        arcadePortals[game.key] = createArcadePortal(game.canvas, game.key);
+        game.draw();
+      } catch (error) {
+        console.warn(`3D ${game.key} unavailable; using the 2D view.`, error);
+      }
+    }
+  }).catch(error => console.warn("3D arcade unavailable; using the 2D views.", error));
 });

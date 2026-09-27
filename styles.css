@@ -266,6 +266,60 @@ body {
   background: #000;
 }
 
+/* Games fill flat carousel frames; perspective comes from their scenes. */
+.game-panel.has-racing-portal,
+.game-panel.has-arcade-portal {
+  position: relative;
+  overflow: hidden;
+}
+
+.has-racing-portal #gameCanvas,
+.has-arcade-portal .arcade-fallback {
+  opacity: 0;
+}
+
+.game-panel .racing-webgl,
+.game-panel .arcade-webgl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+.game-panel .racing-webgl,
+.racing-hud,
+.game-panel .arcade-webgl,
+.arcade-hud {
+  display: none;
+}
+
+.has-racing-portal .racing-webgl,
+.has-racing-portal .racing-hud,
+.has-arcade-portal .arcade-webgl,
+.has-arcade-portal .arcade-hud {
+  display: block;
+}
+
+.racing-hud,
+.arcade-hud {
+  position: absolute;
+  top: 12px;
+  left: 15px;
+  z-index: 2;
+  color: #fff1ce;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  font-size: clamp(10px, 1.2vw, 14px);
+  line-height: 1.5;
+  text-align: left;
+  text-shadow: 2px 2px 0 #090c20;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+}
+
 #game-container.expanded .game-panel:not(.active) {
   opacity: 0.12;
   pointer-events: none;
