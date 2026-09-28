@@ -1,7 +1,7 @@
 const PROJECTS_CACHE_KEY = "jl_projects_cache_v1";
 const PROJECTS_CACHE_TTL_MS = 1000 * 60 * 30;
 const PROJECT_DETAILS = {
-  "computer-vision-predictive-surveillance-system": {
+  "predictive-surveillance-system": {
     description: "Detects unusual activity in video feeds with OpenCV and machine learning, generating real-time alerts for review."
   },
   "freertos-emergency-control-system": {
@@ -12,7 +12,7 @@ const PROJECT_DETAILS = {
   }
 };
 const PINNED_PROJECTS = [
-  "computer-vision-predictive-surveillance-system",
+  "predictive-surveillance-system",
   "freertos-emergency-control-system",
   "intelli-guard"
 ];
@@ -27,9 +27,10 @@ function readProjectsCache() {
     const raw = sessionStorage.getItem(PROJECTS_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed.t !== "number" || !Array.isArray(parsed.repos)) return null;
-    if (Date.now() - parsed.t > PROJECTS_CACHE_TTL_MS) return null;
-    return parsed.repos;
+    if (!parsed || !Number.isFinite(parsed.t) || !Array.isArray(parsed.repos)) return null;
+    const age = Date.now() - parsed.t;
+    if (age < 0 || age > PROJECTS_CACHE_TTL_MS) return null;
+    return normalizeRepos(parsed.repos);
   } catch {
     return null;
   }
@@ -60,7 +61,7 @@ function sanitizeRepoUrl(value) {
   try {
     const url = new URL(String(value));
     const path = url.pathname.toLowerCase();
-    if (url.protocol === "https:" && url.hostname === "github.com" && path.startsWith("/jett-lu/")) {
+    if (url.protocol === "https:" && url.hostname === "github.com" && !url.port && !url.username && !url.password && /^\/jett-lu\/[a-z0-9_.-]+\/?$/.test(path)) {
       return url.toString();
     }
   } catch {
@@ -73,7 +74,7 @@ function sanitizeLanguagesUrl(value) {
   try {
     const url = new URL(String(value));
     const path = url.pathname.toLowerCase();
-    if (url.protocol === "https:" && url.hostname === "api.github.com" && path.startsWith("/repos/jett-lu/")) {
+    if (url.protocol === "https:" && url.hostname === "api.github.com" && !url.port && !url.username && !url.password && /^\/repos\/jett-lu\/[a-z0-9_.-]+\/languages$/.test(path)) {
       return url.toString();
     }
   } catch {
@@ -84,6 +85,50 @@ function sanitizeLanguagesUrl(value) {
 
 function hasFeaturedTopic(repo) {
   return Array.isArray(repo.topics) && repo.topics.some((topic) => String(topic).toLowerCase() === FEATURED_TOPIC);
+}
+
+function normalizeRepos(value) {
+  if (!Array.isArray(value)) throw new Error("GitHub API returned an unexpected response.");
+  return value.filter(repo => repo && typeof repo.name === "string" && /^[\w.-]+$/.test(repo.name)
+    && sanitizeRepoUrl(repo.html_url) !== GITHUB_PROFILE_URL).map(repo => ({
+    ...repo,
+    description: typeof repo.description === "string" ? repo.description : "",
+    homepage: typeof repo.homepage === "string" ? repo.homepage : "",
+    language: typeof repo.language === "string" ? repo.language : "",
+    updated_at: Number.isFinite(Date.parse(repo.updated_at)) ? repo.updated_at : "1970-01-01",
+    stargazers_count: Number.isFinite(repo.stargazers_count) ? repo.stargazers_count : 0
+  }));
+}
+
+async function fetchGithubJson(url, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { headers: GITHUB_API_HEADERS, signal: controller.signal });
+    if (!response.ok) throw new Error(`GitHub API request failed with status ${response.status}`);
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function loadRepoLanguages(repo) {
+  const key = `jl_lang_${repo.name}`;
+  try {
+    const cached = sessionStorage.getItem(key);
+    if (cached) return cached;
+  } catch { /* Storage may be blocked independently of the network. */ }
+  try {
+    const url = sanitizeLanguagesUrl(repo.languages_url);
+    if (!url) return repo.language || "N/A";
+    const data = await fetchGithubJson(url);
+    if (!data || typeof data !== "object" || Array.isArray(data)) return repo.language || "N/A";
+    const languages = Object.entries(data).filter(([, bytes]) => Number.isFinite(bytes) && bytes >= 0).map(([name]) => name).join(", ") || repo.language || "N/A";
+    try { sessionStorage.setItem(key, languages); } catch { /* Cache is optional. */ }
+    return languages;
+  } catch {
+    return repo.language || "N/A";
+  }
 }
 
 function hasProjectSummary(repo) {
@@ -151,6 +196,8 @@ async function loadProjects(container, opts = {}) {
   if (!container || container.getAttribute("aria-busy") === "true") return;
   container.setAttribute("aria-busy", "true");
   const refreshButton = document.getElementById("refresh-projects");
+  const status = document.getElementById("project-status");
+  if (status) status.textContent = "";
   if (refreshButton) refreshButton.disabled = true;
   const hasCards = Boolean(container.querySelector(".project-card"));
   const initialScrollY = window.scrollY;
@@ -173,10 +220,7 @@ async function loadProjects(container, opts = {}) {
     }
 
     if (!allRepos) {
-      const res = await fetch(GITHUB_REPOS_URL, { headers: GITHUB_API_HEADERS });
-      if (!res.ok) throw new Error(`GitHub API request failed with status ${res.status}`);
-      allRepos = await res.json();
-      if (!Array.isArray(allRepos)) throw new Error("GitHub API returned an unexpected response.");
+      allRepos = normalizeRepos(await fetchGithubJson(GITHUB_REPOS_URL));
       writeProjectsCache(allRepos);
     }
 
@@ -188,32 +232,11 @@ async function loadProjects(container, opts = {}) {
 
     const nextCards = document.createDocumentFragment();
 
-    for (const repo of selected) {
-      let langList = "N/A";
-
-      try {
-        const langCacheKey = `jl_lang_${repo.name}`;
-        const cachedLang = sessionStorage.getItem(langCacheKey);
-        if (cachedLang) {
-          langList = cachedLang;
-        } else {
-          const languagesUrl = sanitizeLanguagesUrl(repo.languages_url);
-          if (!languagesUrl) throw new Error("Repository languages URL is not trusted.");
-          const langRes = await fetch(languagesUrl, { headers: GITHUB_API_HEADERS });
-          if (!langRes.ok) throw new Error(`GitHub API request failed with status ${langRes.status}`);
-          const langs = await langRes.json();
-          langList = Object.keys(langs || {}).join(", ") || "N/A";
-          sessionStorage.setItem(langCacheKey, langList);
-        }
-      } catch {
-        langList = "N/A";
-      }
-
-      nextCards.appendChild(createProjectCard(repo, langList));
-    }
+    const languages = await Promise.all(selected.map(loadRepoLanguages));
+    selected.forEach((repo, index) => nextCards.appendChild(createProjectCard(repo, languages[index])));
 
     if (!selected.length) {
-      if (!hasCards) renderProjectFallback(container, "No featured projects found.");
+      renderProjectFallback(container, "No featured projects found.");
     } else {
       const animateRefresh = opts.rotate && hasCards && typeof container.animate === "function"
         && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -235,6 +258,7 @@ async function loadProjects(container, opts = {}) {
     }
   } catch {
     if (!hasCards) renderProjectFallback(container, "Failed to load featured projects.");
+    else if (status) status.textContent = "Could not refresh projects. Showing the last available projects; try again shortly.";
   } finally {
     container.setAttribute("aria-busy", "false");
     if (refreshButton) refreshButton.disabled = false;
@@ -242,7 +266,7 @@ async function loadProjects(container, opts = {}) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-const HIGH_SCORE_KEYS = {
+  const HIGH_SCORE_KEYS = {
     asteroids: "jl_highscore_asteroids",
     car: "jl_highscore_car",
     invaders: "jl_highscore_invaders",
@@ -276,6 +300,7 @@ const HIGH_SCORE_KEYS = {
   const overlayText = document.getElementById("game-over-text");
   const helpOverlay = document.getElementById("game-help-overlay");
   const helpText = document.getElementById("game-help-text");
+  const helpCloseBtn = document.getElementById("game-help-close");
   const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
   const astCanvas = document.getElementById("asteroidsCanvas");
@@ -288,12 +313,6 @@ const HIGH_SCORE_KEYS = {
   const brickCtx = brickCanvas ? brickCanvas.getContext("2d") : null;
   const snakeCanvas = document.getElementById("snakeCanvas");
   const snakeCtx = snakeCanvas ? snakeCanvas.getContext("2d") : null;
-
-  if (astCanvas) astCanvas.style.touchAction = "none";
-  if (carCanvas) carCanvas.style.touchAction = "none";
-  if (invCanvas) invCanvas.style.touchAction = "none";
-  if (brickCanvas) brickCanvas.style.touchAction = "none";
-  if (snakeCanvas) snakeCanvas.style.touchAction = "none";
 
   let titleRaf = 0;
   let holdLeft = false;
@@ -466,7 +485,8 @@ const HIGH_SCORE_KEYS = {
           obs.unobserve(entry.target);
         });
       },
-      { threshold: 0.35 }
+      // Tall sections must still reveal on short phone screens.
+      { threshold: 0.01 }
     );
 
     fadeEls.forEach((el) => observer.observe(el));
@@ -562,11 +582,11 @@ const HIGH_SCORE_KEYS = {
     helpOverlay.style.visibility = "visible";
     helpOpen = true;
     updateHelpButton();
-    helpOverlay.focus({ preventScroll: true });
+    (helpCloseBtn || helpOverlay).focus({ preventScroll: true });
   }
 
   function showOverlay(score, highScore) {
-    const retry = "Click or tap the game to try again.";
+    const retry = "Press an arrow key or tap the game to try again.";
     showMessageOverlay([
       "Your score:",
       String(Math.floor(score)),
@@ -579,7 +599,7 @@ const HIGH_SCORE_KEYS = {
   }
 
   function showPauseOverlay() {
-    showMessageOverlay(["Game Paused.", "", "Click or tap the game to resume."]);
+    showMessageOverlay(["Game Paused.", "", "Press an arrow key or tap the game to resume."]);
   }
 
   function clamp(n, a, b) {
@@ -844,7 +864,9 @@ const HIGH_SCORE_KEYS = {
     const duration = shouldAnimate ? getCarouselDuration(distance) : 0;
     const targetX = getProjectedTargetXForIndex(next);
 
+    const moveFocus = panels[currentIndex]?.contains(document.activeElement);
     setActive(next);
+    if (moveFocus) panels[next].focus({ preventScroll: true });
     if (typeof targetX === "number") {
       setTranslateX(targetX, shouldAnimate, duration);
     } else {
@@ -875,9 +897,12 @@ const HIGH_SCORE_KEYS = {
   }
 
   function updateStoredHighScore(key, currentHigh, candidate) {
-    if (candidate <= currentHigh) return currentHigh;
-    writeStoredNumber(key, candidate);
-    return candidate;
+    // Persist only visible score changes and preserve records from other tabs.
+    if (Math.floor(candidate) <= Math.floor(currentHigh)) return currentHigh;
+    const saved = readStoredNumber(key);
+    const high = Math.max(Math.floor(currentHigh), Math.floor(candidate), Math.floor(saved));
+    if (high > saved) writeStoredNumber(key, high);
+    return high;
   }
 
   function setAstCanvasSize() {
@@ -996,8 +1021,9 @@ const HIGH_SCORE_KEYS = {
     const thrust = 62;
     ast.vx += Math.cos(ast.angle) * thrust * dt;
     ast.vy += Math.sin(ast.angle) * thrust * dt;
-    ast.vx *= 0.965;
-    ast.vy *= 0.965;
+    const damping = Math.pow(0.965, dt * 60);
+    ast.vx *= damping;
+    ast.vy *= damping;
     ast.shipX += ast.vx * dt;
     ast.shipY += ast.vy * dt;
     if (ast.shipX < 0) ast.shipX += astCanvas.width;
@@ -1112,6 +1138,7 @@ const HIGH_SCORE_KEYS = {
     if (!carCanvas || !carCtx) return;
 
     if (racingPortal?.render({
+      onUnavailable: drawCarGame,
       lane: isPlayMode() ? carVisualLane : 1,
       steer: isPlayMode() ? playerCar.lane - carVisualLane : 0,
       obstacles,
@@ -1326,6 +1353,7 @@ const HIGH_SCORE_KEYS = {
 
     const bulletSpeed = 650;
     inv.bullets.forEach((bullet) => {
+      bullet.previousY = bullet.y;
       bullet.y -= bulletSpeed * dt;
     });
     inv.bullets = inv.bullets.filter((bullet) => bullet.y > -20 && !bullet.dead);
@@ -1358,8 +1386,8 @@ const HIGH_SCORE_KEYS = {
       inv.aliens.forEach((alien) => {
         if (!alien.alive || bullet.dead) return;
         const dx = Math.abs(bullet.x - alien.x);
-        const dy = Math.abs(bullet.y - alien.y);
-        if (dx < 12 && dy < 12) {
+        const crossesAlien = bullet.y < alien.y + 12 && bullet.previousY > alien.y - 12;
+        if (dx < 12 && crossesAlien) {
           alien.alive = false;
           bullet.dead = true;
           inv.score += 10;
@@ -1516,12 +1544,15 @@ const HIGH_SCORE_KEYS = {
   }
 
   function placeSnakeFood() {
-    do {
-      snake.food = {
-        x: Math.floor(Math.random() * snake.cols),
-        y: Math.floor(Math.random() * snake.rows)
-      };
-    } while (snake.body.some((part) => part.x === snake.food.x && part.y === snake.food.y));
+    const occupied = new Set(snake.body.map(part => part.y * snake.cols + part.x));
+    const free = [];
+    for (let cell = 0; cell < snake.cols * snake.rows; cell++) {
+      if (!occupied.has(cell)) free.push(cell);
+    }
+    if (!free.length) { snake.food = null; return false; }
+    const cell = free[Math.floor(Math.random() * free.length)];
+    snake.food = { x: cell % snake.cols, y: Math.floor(cell / snake.cols) };
+    return true;
   }
 
   function resetSnakeGame() {
@@ -1575,7 +1606,7 @@ const HIGH_SCORE_KEYS = {
     snakeCtx.fillText(`High Score: ${Math.floor(snake.high)}`, 10, 40);
 
     snakeCtx.font = "20px Courier";
-    snakeCtx.fillText("*", snake.food.x * snake.cell + 5, snake.food.y * snake.cell + 16);
+    if (snake.food) snakeCtx.fillText("*", snake.food.x * snake.cell + 5, snake.food.y * snake.cell + 16);
 
     snake.body.forEach((part, index) => {
       snakeCtx.fillText(index === 0 ? "@" : "o", part.x * snake.cell + 4, part.y * snake.cell + 16);
@@ -1597,7 +1628,7 @@ const HIGH_SCORE_KEYS = {
       y: head.y + snake.dirY
     };
 
-    const eatsFood = next.x === snake.food.x && next.y === snake.food.y;
+    const eatsFood = snake.food && next.x === snake.food.x && next.y === snake.food.y;
     const bodyToCheck = eatsFood ? snake.body : snake.body.slice(0, -1);
 
     if (
@@ -1617,7 +1648,10 @@ const HIGH_SCORE_KEYS = {
     if (eatsFood) {
       snake.score += 10;
       snake.high = updateStoredHighScore(HIGH_SCORE_KEYS.snake, snake.high, snake.score);
-      placeSnakeFood();
+      if (!placeSnakeFood()) {
+        snake.gameOver = true;
+        showMessageOverlay(["You filled the board!", `Score: ${snake.score}`, "Press an arrow key or tap the game to play again."]);
+      }
     } else {
       snake.body.pop();
     }
@@ -1783,6 +1817,8 @@ const HIGH_SCORE_KEYS = {
 
     if (!isPlayMode()) return;
 
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
     }
@@ -1889,6 +1925,15 @@ const HIGH_SCORE_KEYS = {
     hideOverlay();
   }
 
+  function suspendActiveGame() {
+    clearHolds();
+    lastCarFrame = null;
+    const game = getActiveGame();
+    if (!isPlayMode() || !game || game.isOver()) return;
+    game.pause({ silent: true });
+    showPauseOverlay();
+  }
+
   function resumeActiveGame() {
     getActiveGame()?.reset();
   }
@@ -1913,7 +1958,7 @@ const HIGH_SCORE_KEYS = {
     lastCarFrame = ts;
     if (!document.hidden && !reduceCarMotion.matches) arcadeTime += dt;
 
-    if (isPlayMode()) {
+    if (isPlayMode() && !document.hidden) {
       const activeGame = getActiveGame();
       activeGame?.update(dt);
       activeGame?.draw();
@@ -2173,11 +2218,34 @@ const HIGH_SCORE_KEYS = {
 
   if (helpOverlay) {
     helpOverlay.addEventListener("keydown", (event) => {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        (helpCloseBtn || helpOverlay).focus({ preventScroll: true });
+        return;
+      }
+      if (event.target === helpCloseBtn) return;
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       closeHelpOverlay();
     });
   }
+
+  helpCloseBtn?.addEventListener("click", closeHelpOverlay);
+  window.addEventListener("blur", suspendActiveGame);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) suspendActiveGame();
+    else { lastCarFrame = null; drawEveryGameOnce(); }
+  });
+  window.addEventListener("storage", (event) => {
+    const score = Number(event.newValue);
+    if (!Number.isFinite(score) || score < 0) return;
+    for (const [name, state] of [["asteroids", ast], ["invaders", inv], ["brick", brick], ["snake", snake]]) {
+      if (event.key === HIGH_SCORE_KEYS[name]) state.high = Math.max(state.high, score);
+    }
+    if (event.key === HIGH_SCORE_KEYS.car) carHighScore = Math.max(carHighScore, score);
+    if (isPlayMode()) getActiveGame()?.draw();
+    else drawEveryGameOnce();
+  });
 
   document.addEventListener("pointerdown", (event) => {
     if (helpOpen) {
@@ -2251,13 +2319,13 @@ const HIGH_SCORE_KEYS = {
   requestTitleUpdate();
 
   // Keep the 2D game available if WebGL or the optional 3D module cannot load.
-  import("./racing-portal.js?v=2").then(({ createRacingPortal }) => {
+  import("./racing-portal.js?v=3").then(({ createRacingPortal }) => {
     racingPortal = createRacingPortal(carCanvas);
     drawCarGame();
   }).catch((error) => {
     console.warn("3D racing unavailable; using the 2D racing view.", error);
   });
-  import("./arcade-portal.js?v=2").then(({ createArcadePortal }) => {
+  import("./arcade-portal.js?v=3").then(({ createArcadePortal }) => {
     for (const game of games) {
       if (game.key === "car") continue;
       try {

@@ -109,9 +109,10 @@ body {
 }
 
 #game-container {
+  --game-layout-height: max(560px, 100svh);
   position: relative;
   width: 100vw;
-  height: calc(100svh - 41px);
+  height: calc(var(--game-layout-height) - 41px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -126,7 +127,7 @@ body {
   --active-panel-width: min(
     var(--game-max-w),
     92vw,
-    calc((100vh - var(--game-ui-chrome)) * (var(--game-aspect-w) / var(--game-aspect-h)))
+    calc((var(--game-layout-height) - var(--game-ui-chrome)) * (var(--game-aspect-w) / var(--game-aspect-h)))
   );
   --active-panel-height: calc(var(--active-panel-width) * (var(--game-aspect-h) / var(--game-aspect-w)));
 }
@@ -309,7 +310,7 @@ body {
   left: 15px;
   z-index: 2;
   color: #fff1ce;
-  font-family: "Courier New", monospace;
+  font-family: inherit;
   font-weight: bold;
   font-size: clamp(10px, 1.2vw, 14px);
   line-height: 1.5;
@@ -364,7 +365,8 @@ body {
 #game-container.expanded #explore-work { display: none; }
 
 #game-play,
-#game-help {
+#game-help,
+#game-help-close {
   position: static;
   transform: none;
   padding: 10px 18px;
@@ -377,7 +379,8 @@ body {
 }
 
 #game-play:hover,
-#game-help:hover {
+#game-help:hover,
+#game-help-close:hover {
   background: #fff;
   color: #000;
 }
@@ -458,6 +461,9 @@ body {
 .content-box:is(#about, #projects, #contact) {
   border-width: 1px;
 }
+
+#game-help-close { margin-top: 16px; }
+#project-status:not(:empty) { margin-top: 16px; }
 
 .content-box:hover,
 .content-box:is(#about, #projects, #contact):hover {
@@ -600,18 +606,23 @@ button:focus-visible,
 }
 
 .carousel-arrow:focus-visible,
+#game-carousel-viewport:focus-visible,
+.game-panel:focus-visible,
 #game-play:focus-visible,
-#game-help:focus-visible {
+#game-help:focus-visible,
+#game-help-close:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
   outline-color: #fff;
 }
 
 @media (max-width: 768px) {
   #game-container {
-    height: 100svh;
+    height: var(--game-layout-height);
     --active-panel-width: min(
       var(--game-max-w),
       calc(100vw - clamp(88px, 22vw, 120px)),
-      calc((100vh - var(--game-ui-chrome)) * (var(--game-aspect-w) / var(--game-aspect-h)))
+      calc((var(--game-layout-height) - var(--game-ui-chrome)) * (var(--game-aspect-w) / var(--game-aspect-h)))
     );
   }
 
@@ -665,6 +676,10 @@ button:focus-visible,
     display: flex;
   }
 
+  html:not(.js) .menu { position: static; background: #fff; }
+  html:not(.js) #hamburger { display: none; }
+  html:not(.js) .menu ul { display: flex; position: static; flex-direction: row; flex-wrap: wrap; gap: 12px; }
+
   .game-panel {
     width: calc(var(--active-panel-width) * 0.8);
     height: auto;
@@ -682,8 +697,19 @@ button:focus-visible,
 }
 
 canvas {
-  touch-action: none;
+  touch-action: pan-y;
 }
+
+html:not(.js) #game-carousel-viewport,
+html:not(.js) #game-controls,
+html:not(.js) .carousel-arrow,
+html:not(.js) #refresh-projects { display: none; }
+
+html:not(.js) #game-container { height: 240px; }
+html:not(.js) #fixed-name-title { position: absolute; }
+.arcade-no-script { color: #fff; padding: 24px; margin-top: 40px; }
+
+#game-container.expanded canvas { touch-action: none; }
 
 @media (min-width: 769px) {
   #game-container:not(.expanded) .game-panel.active {

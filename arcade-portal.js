@@ -243,7 +243,8 @@ export function createArcadePortal(canvas, kind) {
       if (body.length) place(head, body[0].x * 20 + 10, body[0].y * 20 + 10, 8);
       head.rotation.z = preview ? -Math.PI / 2 : Math.atan2(-state.dirY, state.dirX);
       const target = preview ? { x: 13, y: 9 } : state.food;
-      place(food, target.x * 20 + 10, target.y * 20 + 10, preview ? 9 + Math.sin(time * 1.5) * 2 : 9);
+      food.visible = Boolean(target);
+      if (target) place(food, target.x * 20 + 10, target.y * 20 + 10, preview ? 9 + Math.sin(time * 1.5) * 2 : 9);
     };
   }
 
@@ -251,7 +252,6 @@ export function createArcadePortal(canvas, kind) {
   const hud = document.createElement("div"); hud.className = "arcade-hud";
   const score = document.createElement("div"), best = document.createElement("div");
   hud.append(score, best); panel.append(renderer.domElement, hud);
-  panel.classList.add("has-arcade-portal");
   canvas.classList.add("arcade-fallback");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let available = true, inView = true, lastState, lastOptions;

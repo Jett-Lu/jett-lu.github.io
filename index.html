@@ -10,7 +10,7 @@
   />
   <meta
     http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
   />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Jett Lu | Software Engineering Portfolio" />
@@ -28,7 +28,7 @@
   />
   <meta name="theme-color" content="#000000" />
   <link rel="icon" type="image/png" href="github-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=pixel-arcade" />
+  <link rel="stylesheet" href="styles.css?v=pixel-arcade-4" />
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -64,6 +64,7 @@
       aria-describedby="game-instructions"
     >
       <h1 id="fixed-name-title">Jett Lu</h1>
+      <noscript><p class="arcade-no-script">Enable JavaScript to play the arcade games.</p></noscript>
       <p id="game-instructions" class="sr-only">
         Browse the game carousel with the arrow buttons or keyboard arrow keys.
         Press play to open the selected game.
@@ -120,15 +121,16 @@
 
       <a id="explore-work" href="#about">Keep scrolling<br /><span aria-hidden="true">↓</span></a>
 
-      <div id="game-over" role="dialog" aria-modal="true" aria-hidden="true" hidden>
+      <div id="game-over" role="status" aria-label="Game status" aria-hidden="true" hidden>
         <div id="game-over-box">
-          <p id="game-over-text" aria-live="polite">Game Over</p>
+          <p id="game-over-text">Game Over</p>
         </div>
       </div>
 
       <div
         id="game-help-overlay"
         role="dialog"
+        aria-label="Game instructions"
         aria-modal="true"
         aria-hidden="true"
         aria-describedby="game-help-text"
@@ -137,6 +139,7 @@
       >
         <div id="game-help-box" role="document">
           <p id="game-help-text" aria-live="polite"></p>
+          <button id="game-help-close" type="button">Close Help</button>
         </div>
       </div>
     </section>
@@ -157,6 +160,7 @@
     <section id="projects" class="content-box fade-in-section" aria-labelledby="projects-heading">
       <h2 id="projects-heading">Projects</h2>
       <div id="project-container" class="project-grid" aria-live="polite"></div>
+      <p id="project-status" role="status"></p>
       <div class="project-actions">
         <button id="refresh-projects" type="button">Refresh Projects</button>
       <a id="all-projects" href="https://github.com/Jett-Lu?tab=repositories" target="_blank" rel="noopener noreferrer">See all projects</a>
@@ -207,6 +211,6 @@
     </p>
   </footer>
 
-  <script src="script.js?v=pixel-arcade-2"></script>
+  <script src="script.js?v=pixel-arcade-5"></script>
 </body>
 </html>

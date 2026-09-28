@@ -241,9 +241,9 @@ export function createRacingPortal(canvas) {
   const highLabel = document.createElement("div");
   hud.append(scoreLabel, highLabel);
   panel.append(renderer.domElement, hud);
-  panel.classList.add("has-racing-portal");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let available = true;
+  let disposed = false;
   let lastState = null;
   let lastFrame = "";
   let inView = true;
@@ -275,22 +275,33 @@ export function createRacingPortal(canvas) {
     if (lastState) render(lastState);
   }
 
+  function visibilityChanged() {
+    if (!document.hidden && lastState) { lastFrame = ""; render(lastState); }
+  }
+
+  function contextLost(event) {
+    event.preventDefault(); available = false; panel.classList.remove("has-racing-portal");
+    lastState?.onUnavailable?.();
+  }
+
+  function contextRestored() {
+    if (disposed) return;
+    available = true; lastFrame = "";
+    if (lastState) render(lastState);
+  }
+
   panel.addEventListener("pointermove", followPointer, { passive: true });
   panel.addEventListener("pointerleave", resetPointer);
   reducedMotion.addEventListener("change", updateMotionPreference);
+  document.addEventListener("visibilitychange", visibilityChanged);
   const visibility = new IntersectionObserver(([entry]) => {
     inView = entry.isIntersecting;
     if (inView && lastState) { lastFrame = ""; render(lastState); }
   });
   visibility.observe(panel);
 
-  renderer.domElement.addEventListener("webglcontextlost", (event) => {
-    event.preventDefault(); available = false; panel.classList.remove("has-racing-portal");
-  });
-  renderer.domElement.addEventListener("webglcontextrestored", () => {
-    available = true; lastFrame = ""; panel.classList.add("has-racing-portal");
-    if (lastState) render(lastState);
-  });
+  renderer.domElement.addEventListener("webglcontextlost", contextLost);
+  renderer.domElement.addEventListener("webglcontextrestored", contextRestored);
 
   function render(state) {
     lastState = state;
@@ -332,14 +343,21 @@ export function createRacingPortal(canvas) {
     scoreLabel.textContent = `[ SCORE ${String(Math.floor(state.score)).padStart(5, "0")} ]`;
     highLabel.textContent = `[ BEST  ${String(Math.floor(state.highScore)).padStart(5, "0")} ]`;
     renderer.render(scene, camera);
+    panel.classList.add("has-racing-portal");
     return true;
   }
 
   function dispose() {
+    if (disposed) return;
+    disposed = true; available = false;
     visibility.disconnect();
     panel.removeEventListener("pointermove", followPointer);
     panel.removeEventListener("pointerleave", resetPointer);
     reducedMotion.removeEventListener("change", updateMotionPreference);
+    document.removeEventListener("visibilitychange", visibilityChanged);
+    renderer.domElement.removeEventListener("webglcontextlost", contextLost);
+    renderer.domElement.removeEventListener("webglcontextrestored", contextRestored);
+    scene.traverse(object => { if (object.isInstancedMesh) object.dispose(); });
     geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose());
     renderer.dispose(); renderer.domElement.remove(); hud.remove(); panel.classList.remove("has-racing-portal");
   }
