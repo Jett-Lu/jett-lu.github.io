@@ -15,9 +15,9 @@ export function createArcadePortal(canvas, kind) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(kind === "snake" ? 0x061510 : 0x070b1b);
-  // Game coordinates occupy a 400 x 600 plane. A small fixed tilt reveals the
-  // thickness of the models while preserving the entire playable area.
-  const camera = new THREE.OrthographicCamera(-225, 225, 337.5, -337.5, 1, 1800);
+  // An open scene behind the flat frame, with no visible recess walls.
+  // Both modes use the same centred camera and object scale.
+  const camera = new THREE.PerspectiveCamera(36, 2 / 3, 50, 2400);
   scene.add(new THREE.HemisphereLight(0xd5e7ff, 0x283048, 2));
   const light = new THREE.DirectionalLight(0xffead1, 3);
   light.position.set(-250, 400, 600); scene.add(light);
@@ -129,7 +129,7 @@ export function createArcadePortal(canvas, kind) {
     return (state, preview, time) => {
       place(player, preview ? 200 : state.shipX, preview ? 453 : state.shipY);
       player.rotation.z = preview ? 0 : -state.angle - Math.PI / 2;
-      player.scale.setScalar(preview ? 2.1 : 1);
+      player.scale.setScalar(state.shipScale ?? 2.1);
       const items = preview ? demoRocks : state.rocks;
       rocks.forEach((mesh, i) => {
         const rock = items[i]; mesh.visible = Boolean(rock);
@@ -142,7 +142,7 @@ export function createArcadePortal(canvas, kind) {
         mesh.rotation.set(style * 0.7 + time * 0.08, style * 0.3 + time * 0.05, style);
       });
       const bullets = preview ? demoShots : state.bullets;
-      bullets.slice(0, 12).forEach((bullet, i) => stamp(shots, i, bullet.x, bullet.y, 12, 2.5, 12, 2.5, -bullet.angle - Math.PI / 2));
+      bullets.slice(0, 12).forEach((bullet, i) => stamp(shots, i, bullet.x, bullet.y, 12, 4, 12, 2.5, -bullet.angle - Math.PI / 2));
       finish(shots, Math.min(bullets.length, 12));
     };
   }
@@ -156,27 +156,27 @@ export function createArcadePortal(canvas, kind) {
     ];
     const rowPaint = [0xf45861, 0xffc83d, 0x6de349, 0x8570fa].map(paint);
     // All cubes of a sprite share geometry/material; model pools are reused.
-    const aliens = Array.from({ length: 36 }, (_, i) => {
-      const group = voxelSprite(patterns[Math.floor(i / 9) % 2], { X: rowPaint[Math.floor(i / 9)] });
+    const aliens = Array.from({ length: 20 }, (_, i) => {
+      const group = voxelSprite(patterns[Math.floor(i / 5) % 2], { X: rowPaint[Math.floor(i / 5)] });
       scene.add(group); return group;
     });
     const shots = instances(cyan, 12);
     const demoShots = [{ x: 200, y: 364 }, { x: 200, y: 434 }];
     return (state, preview, time) => {
       place(player, preview ? 200 : state.shipX, preview ? 535 : state.shipY);
-      player.scale.setScalar(preview ? 1.8 : 1.2);
+      player.scale.setScalar(state.shipScale ?? 1.8);
       aliens.forEach((mesh, i) => {
         const alien = state.aliens[i];
-        // The attract screen uses a larger, more legible 5 x 4 formation.
-        const row = Math.floor(i / 9), col = i % 9;
-        mesh.visible = preview ? col < 5 : Boolean(alien?.alive);
+        // Gameplay shares the original illustrated formation and sprite size.
+        const row = Math.floor(i / 5), col = i % 5;
+        mesh.visible = preview || Boolean(alien?.alive);
         if (!mesh.visible) return;
         place(mesh, preview ? 70 + col * 65 + Math.sin(time * 0.5) * 5 : alien.x,
           preview ? 152 + row * 51 : alien.y);
-        mesh.scale.setScalar(preview ? 1.65 : 1);
+        mesh.scale.setScalar(state.alienScale ?? 1.65);
       });
       const bullets = preview ? demoShots : state.bullets.filter(bullet => !bullet.dead);
-      bullets.slice(0, 12).forEach((bullet, i) => stamp(shots, i, bullet.x, bullet.y, 12, 2.5, 12, 2.5));
+      bullets.slice(0, 12).forEach((bullet, i) => stamp(shots, i, bullet.x, bullet.y, 12, 4, 12, 2.5));
       finish(shots, Math.min(bullets.length, 12));
     };
   }
@@ -295,7 +295,7 @@ export function createArcadePortal(canvas, kind) {
     const ease = 1 - Math.exp(-9 * Math.min((now - lastTime) / 1000, 0.1)); lastTime = now;
     if (options.preview && panel.classList.contains("active") && !reducedMotion.matches) viewpoint.lerp(pointer, ease);
     else { resetPointer(); viewpoint.set(0, 0); }
-    camera.position.set(35 + viewpoint.x * 60, -180 + viewpoint.y * 45, 950);
+    camera.position.set(viewpoint.x * 31, viewpoint.y * 15.5, 1050);
     camera.lookAt(0, 0, 0);
     if (!paused) sceneTime = reducedMotion.matches ? 0 : options.time || 0;
     updateScene(state, Boolean(options.preview), sceneTime);

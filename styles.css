@@ -111,7 +111,7 @@ body {
 #game-container {
   --game-layout-height: max(560px, 100svh);
   position: relative;
-  width: 100vw;
+  width: 100%;
   height: calc(var(--game-layout-height) - 41px);
   display: flex;
   justify-content: center;

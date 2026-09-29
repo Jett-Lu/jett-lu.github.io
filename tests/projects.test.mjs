@@ -66,3 +66,28 @@ test('an empty successful refresh removes obsolete cards and supplies a fallback
   assert.match(container.textContent, /No featured projects found/);
   assert.equal(container.getAttribute('aria-busy'), 'false');
 });
+
+test('initial project loading keeps a direct section link in view after cards arrive', async () => {
+  const env = loadSite({ fetch: async url => response(url.includes('/languages') ? { JavaScript: 42 } : [repo()]) });
+  env.window.location = { hash: '#contact' };
+  env.elements.get('contact').scrollIntoView = () => { env.window.scrollY = 1000; };
+  await env.context.loadProjects(env.elements.get('project-container'), { initial: true });
+  env.frames.forEach(frame => frame());
+  assert.equal(env.window.scrollY, 1000);
+  assert.equal(env.window.listeners.get('wheel')?.size || 0, 0, 'temporary listeners must be removed');
+});
+
+test('loading must not pull the visitor back after interaction or another section link', async () => {
+  for (const interaction of ['wheel', 'touchstart', 'pointerdown', 'keydown', 'hashchange']) {
+    const env = loadSite({ fetch: async url => response(url.includes('/languages') ? { JavaScript: 42 } : [repo()]) });
+    env.window.location = { hash: '#contact' };
+    env.elements.get('contact').scrollIntoView = () => { env.window.scrollY = 1000; };
+    const pending = env.context.loadProjects(env.elements.get('project-container'), { initial: true });
+    if (interaction === 'hashchange') env.window.location.hash = '#about';
+    else env.window.emit(interaction);
+    env.window.scrollY = 400;
+    await pending;
+    env.frames.forEach(frame => frame());
+    assert.equal(env.window.scrollY, 400, interaction);
+  }
+});

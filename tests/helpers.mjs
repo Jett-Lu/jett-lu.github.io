@@ -80,6 +80,7 @@ export function loadSite(options = {}) {
     source = source.slice(0, source.indexOf('  // Keep the 2D game available')) + `
       globalThis.controller = { snake, ast, inv, brick, games, setActive, placeSnakeFood, updateSnake,
         handleGameKeyDown, updateStoredHighScore, loop, getActiveGame, updateAsteroids, updateInvaders, selectCarouselIndex,
+        racingState: () => ({ obstacles, speed: carSpeed }), setRacingPortal: portal => { racingPortal = portal; },
         holds: () => [holdLeft, holdRight], paused: () => [astPaused, invPaused, carPaused, brickPaused, snakePaused] };
     });`;
   }

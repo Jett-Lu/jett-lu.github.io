@@ -194,6 +194,15 @@ function renderProjectFallback(container, message) {
 
 async function loadProjects(container, opts = {}) {
   if (!container || container.getAttribute("aria-busy") === "true") return;
+  // Async cards can push a directly linked section below the viewport.
+  const initialHash = opts.initial ? window.location?.hash : null;
+  const initialAnchor = initialHash ? document.getElementById(initialHash.slice(1)) : null;
+  let keepInitialAnchor = Boolean(initialAnchor);
+  const cancelInitialAnchor = () => { keepInitialAnchor = false; };
+  const anchorCancelEvents = ["wheel", "touchstart", "pointerdown", "keydown"];
+  if (initialAnchor) {
+    anchorCancelEvents.forEach(type => window.addEventListener(type, cancelInitialAnchor, { passive: true }));
+  }
   container.setAttribute("aria-busy", "true");
   const refreshButton = document.getElementById("refresh-projects");
   const status = document.getElementById("project-status");
@@ -262,6 +271,12 @@ async function loadProjects(container, opts = {}) {
   } finally {
     container.setAttribute("aria-busy", "false");
     if (refreshButton) refreshButton.disabled = false;
+    if (initialAnchor) requestAnimationFrame(() => {
+      anchorCancelEvents.forEach(type => window.removeEventListener(type, cancelInitialAnchor));
+      if (keepInitialAnchor && window.location.hash === initialHash) {
+        initialAnchor.scrollIntoView({ block: "start", behavior: "instant" });
+      }
+    });
   }
 }
 
@@ -350,6 +365,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const ast = {
+    shipScale: 2.1,
     shipX: 200,
     shipY: 300,
     angle: -Math.PI / 2,
@@ -383,6 +399,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const reduceCarMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   const inv = {
+    shipScale: 1.8,
+    alienScale: 1.65,
     shipX: 190,
     shipY: 540,
     bullets: [],
@@ -862,9 +880,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const shouldAnimate = Boolean(animate) && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const distance = Math.abs(next - currentIndex);
     const duration = shouldAnimate ? getCarouselDuration(distance) : 0;
+    // Measuring the next layout can hide an end arrow and drop browser focus.
+    const focused = document.activeElement;
+    const moveFocus = panels[currentIndex]?.contains(focused)
+      || (focused === leftArrow && next === 0)
+      || (focused === rightArrow && next === panels.length - 1);
     const targetX = getProjectedTargetXForIndex(next);
 
-    const moveFocus = panels[currentIndex]?.contains(document.activeElement);
     setActive(next);
     if (moveFocus) panels[next].focus({ preventScroll: true });
     if (typeof targetX === "number") {
@@ -914,7 +936,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function makeAsteroidFromEdge(index, speedBoost) {
     if (!astCanvas) return { x: 0, y: 0, vx: 0, vy: 0, r: 20 };
     const side = index % 4;
-    const margin = 26;
+    const margin = 46;
     const x = side === 0 ? -margin : side === 1 ? astCanvas.width + margin : 40 + Math.random() * 320;
     const y = side === 2 ? -margin : side === 3 ? astCanvas.height + margin : 80 + Math.random() * 440;
     const targetX = 140 + Math.random() * 120;
@@ -928,7 +950,7 @@ document.addEventListener("DOMContentLoaded", () => {
       y,
       vx: (dx / len) * speed,
       vy: (dy / len) * speed,
-      r: 18 + Math.random() * 9,
+      r: 25 + Math.random() * 18,
       art: ["[O]", "{O}", "(0)", "<O>", "[0]"][index % 5]
     };
   }
@@ -951,7 +973,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!astCanvas || !astCtx) return;
     setAstCanvasSize();
     ast.shipX = 200;
-    ast.shipY = 300;
+    ast.shipY = 453;
     ast.angle = -Math.PI / 2;
     ast.vx = 0;
     ast.vy = 0;
@@ -982,10 +1004,10 @@ document.addEventListener("DOMContentLoaded", () => {
     astCtx.save();
     astCtx.translate(ast.shipX, ast.shipY);
     astCtx.rotate(ast.angle + Math.PI / 2);
-    astCtx.font = "22px Courier";
+    astCtx.font = `${24 * ast.shipScale}px Courier`;
     astCtx.textAlign = "center";
     astCtx.textBaseline = "middle";
-    astCtx.fillText("/\\", 0, 0);
+    astCtx.fillText("/\\", 0, 0, 22 * ast.shipScale);
     astCtx.restore();
     astCtx.textAlign = "start";
     astCtx.textBaseline = "alphabetic";
@@ -1004,8 +1026,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     ast.rocks.forEach((rock) => {
-      astCtx.font = "20px Courier";
-      astCtx.fillText(rock.art, rock.x - 15, rock.y + 6);
+      astCtx.save();
+      astCtx.font = `${rock.r * 2}px Courier`;
+      astCtx.textAlign = "center";
+      astCtx.textBaseline = "middle";
+      astCtx.fillText(rock.art, rock.x, rock.y, rock.r * 2);
+      astCtx.restore();
     });
   }
 
@@ -1034,9 +1060,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const now = Date.now();
     if (now - ast.lastShot > ast.shotMs) {
       ast.lastShot = now;
+      const muzzle = 12 * ast.shipScale + 6;
       ast.bullets.push({
-        x: ast.shipX + Math.cos(ast.angle) * 18,
-        y: ast.shipY + Math.sin(ast.angle) * 18,
+        x: ast.shipX + Math.cos(ast.angle) * muzzle,
+        y: ast.shipY + Math.sin(ast.angle) * muzzle,
         vx: Math.cos(ast.angle) * 420 + ast.vx,
         vy: Math.sin(ast.angle) * 420 + ast.vy,
         angle: ast.angle,
@@ -1093,7 +1120,7 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const rock of ast.rocks) {
       const dx = ast.shipX - rock.x;
       const dy = ast.shipY - rock.y;
-      if (Math.hypot(dx, dy) < rock.r + 10) {
+      if (Math.hypot(dx, dy) < rock.r + 10 * ast.shipScale) {
         ast.gameOver = true;
         ast.high = updateStoredHighScore(HIGH_SCORE_KEYS.asteroids, ast.high, ast.score);
         showOverlay(ast.score, ast.high);
@@ -1217,9 +1244,9 @@ document.addEventListener("DOMContentLoaded", () => {
     carDistance += moveAmount * 0.16;
     carVisualLane += (playerCar.lane - carVisualLane) * (1 - Math.exp(-22 * deltaTime));
     obstacles.forEach((obstacle) => {
+      obstacle.previousY = obstacle.y;
       obstacle.y += moveAmount;
     });
-    obstacles = obstacles.filter((obstacle) => obstacle.y < carCanvas.height + 50);
 
     const playerWidth = carCtx.measureText(playerCarArt).width;
     const playerHeight = 20;
@@ -1229,21 +1256,23 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const obstacle of obstacles) {
       const obstacleWidth = 20;
       const obstacleHeight = 20;
-      const obstacleX = getLaneCenterX(obstacle.lane, obstacle.y) - obstacleWidth / 2;
-      const obstacleY = obstacle.y - obstacleHeight;
+      // Test the travelled interval, so fast traffic cannot jump past a car.
+      const contactY = clamp(playerCar.y, obstacle.previousY, obstacle.y);
+      const obstacleX = getLaneCenterX(obstacle.lane, contactY) - obstacleWidth / 2;
+      const crossesPlayer = obstacle.y > playerY && obstacle.previousY - obstacleHeight < playerCar.y;
 
       const collided = racingPortal?.available
-        ? Math.abs(carVisualLane - obstacle.lane) * 3 < 1.65 && Math.abs(playerCar.y - obstacle.y) < 20
+        ? Math.abs(carVisualLane - obstacle.lane) * 3 < 1.65 && crossesPlayer
         : playerX < obstacleX + obstacleWidth &&
         playerX + playerWidth > obstacleX &&
-        playerY < obstacleY + obstacleHeight &&
-        playerY + playerHeight > obstacleY;
+        crossesPlayer;
       if (collided) {
         carGameOver = true;
         showOverlay(carScore, carHighScore);
         break;
       }
     }
+    obstacles = obstacles.filter((obstacle) => obstacle.y < carCanvas.height + 50);
 
     const now = Date.now();
     if (now - lastObstacleSpawn > Math.max(300, 1000 - carScore * 2)) {
@@ -1268,7 +1297,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!invCanvas) return;
     invCanvas.width = 400;
     invCanvas.height = 600;
-    inv.shipY = invCanvas.height - 60;
+    inv.shipY = invCanvas.height - 65;
   }
 
   function spawnInvaderWave() {
@@ -1276,11 +1305,11 @@ document.addEventListener("DOMContentLoaded", () => {
     inv.dir = 1;
 
     const rows = 4;
-    const cols = 9;
-    const startX = 60;
-    const startY = 100;
-    const gapX = 32;
-    const gapY = 30;
+    const cols = 5;
+    const startX = 70;
+    const startY = 152;
+    const gapX = 65;
+    const gapY = 51;
 
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < cols; col += 1) {
@@ -1292,7 +1321,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function resetInvadersGame() {
     if (!invCanvas || !invCtx) return;
     setInvCanvasSize();
-    inv.shipX = 190;
+    inv.shipX = 200;
     inv.bullets = [];
     inv.speedX = 1.2;
     inv.score = 0;
@@ -1321,14 +1350,18 @@ document.addEventListener("DOMContentLoaded", () => {
     invCtx.fillText(`Score: ${Math.floor(inv.score)}`, 10, 20);
     invCtx.fillText(`High Score: ${Math.floor(inv.high)}`, 10, 40);
 
-    invCtx.font = "22px Courier";
-    invCtx.fillText("/^\\", inv.shipX - 12, inv.shipY);
+    invCtx.save();
+    invCtx.textAlign = "center";
+    invCtx.textBaseline = "middle";
+    invCtx.font = `${24 * inv.shipScale}px Courier`;
+    invCtx.fillText("/^\\", inv.shipX, inv.shipY, 22 * inv.shipScale);
 
-    invCtx.font = "20px Courier";
+    invCtx.font = `${16 * inv.alienScale}px Courier`;
     inv.aliens.forEach((alien) => {
       if (!alien.alive) return;
-      invCtx.fillText("W", alien.x, alien.y);
+      invCtx.fillText("[W]", alien.x, alien.y, 22 * inv.alienScale);
     });
+    invCtx.restore();
 
     invCtx.font = "18px Courier";
     inv.bullets.forEach((bullet) => {
@@ -1348,7 +1381,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const now = Date.now();
     if (now - inv.lastShot > inv.shotMs) {
       inv.lastShot = now;
-      inv.bullets.push({ x: inv.shipX, y: inv.shipY - 18, dead: false });
+      inv.bullets.push({ x: inv.shipX, y: inv.shipY - 12 * inv.shipScale - 6, dead: false });
     }
 
     const bulletSpeed = 650;
@@ -1368,8 +1401,11 @@ document.addEventListener("DOMContentLoaded", () => {
       rightMost = Math.max(rightMost, alien.x);
     });
 
-    const leftOverflow = Math.min(0, leftMost - 20);
-    const rightOverflow = Math.max(0, rightMost - 380);
+    const alienHalfWidth = 11 * inv.alienScale;
+    const alienHalfHeight = 8 * inv.alienScale;
+    const alienMargin = alienHalfWidth + 2;
+    const leftOverflow = Math.min(0, leftMost - alienMargin);
+    const rightOverflow = Math.max(0, rightMost - (invCanvas.width - alienMargin));
     const edgeCorrection = leftOverflow ? -leftOverflow : -rightOverflow;
 
     if (edgeCorrection) {
@@ -1378,7 +1414,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!alien.alive) return;
         alien.x += edgeCorrection;
         alien.y += inv.stepDown;
-        if (alien.y > inv.shipY - 40) inv.gameOver = true;
+        if (alien.y + alienHalfHeight >= inv.shipY - 12 * inv.shipScale) inv.gameOver = true;
       });
     }
 
@@ -1386,8 +1422,8 @@ document.addEventListener("DOMContentLoaded", () => {
       inv.aliens.forEach((alien) => {
         if (!alien.alive || bullet.dead) return;
         const dx = Math.abs(bullet.x - alien.x);
-        const crossesAlien = bullet.y < alien.y + 12 && bullet.previousY > alien.y - 12;
-        if (dx < 12 && crossesAlien) {
+        const crossesAlien = bullet.y - 6 < alien.y + alienHalfHeight && bullet.previousY + 6 > alien.y - alienHalfHeight;
+        if (dx < alienHalfWidth + 2 && crossesAlien) {
           alien.alive = false;
           bullet.dead = true;
           inv.score += 10;
@@ -1425,16 +1461,16 @@ document.addEventListener("DOMContentLoaded", () => {
     brick.score = 0;
     brick.gameOver = false;
     brickPaused = false;
-    brick.paddleX = 156;
-    brick.ballX = 200;
-    brick.ballY = 360;
+    brick.paddleX = 160;
+    brick.ballX = 235;
+    brick.ballY = 421;
     brick.ballDX = 2.6;
     brick.ballDY = -2.8;
 
     brick.bricks = [];
     for (let row = 0; row < 5; row += 1) {
       for (let col = 0; col < 9; col += 1) {
-        brick.bricks.push({ x: 28 + col * 40, y: 90 + row * 24, alive: true });
+        brick.bricks.push({ x: 28 + col * 40, y: 153 + row * 30, alive: true });
       }
     }
 
@@ -1469,9 +1505,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const ballMinX = 12;
     const ballMaxX = brickCanvas.width - 12;
     const ballMinY = 60;
+    const ballRadius = 7;
     const paddleY = 548;
     const paddleWidth = 80;
-    const paddleCatchPadding = 8;
     const paddleSpeed = 540;
     if (holdLeft) brick.paddleX -= paddleSpeed * dt;
     if (holdRight) brick.paddleX += paddleSpeed * dt;
@@ -1496,13 +1532,13 @@ document.addEventListener("DOMContentLoaded", () => {
       brick.ballDY = Math.abs(brick.ballDY);
     }
 
-    const crossedPaddle = previousBallY < paddleY && brick.ballY >= paddleY;
-    if ((crossedPaddle || (brick.ballY >= paddleY && brick.ballY <= paddleY + 14)) && brick.ballDY > 0) {
+    const crossedPaddle = previousBallY + ballRadius <= paddleY && brick.ballY + ballRadius >= paddleY;
+    if (crossedPaddle && brick.ballDY > 0) {
       if (
-        brick.ballX >= brick.paddleX - paddleCatchPadding &&
-        brick.ballX <= brick.paddleX + paddleWidth + paddleCatchPadding
+        brick.ballX >= brick.paddleX - ballRadius &&
+        brick.ballX <= brick.paddleX + paddleWidth + ballRadius
       ) {
-        brick.ballY = paddleY - 2;
+        brick.ballY = paddleY - ballRadius;
         brick.ballDY = -Math.abs(brick.ballDY);
         const hit = (brick.ballX - (brick.paddleX + paddleWidth / 2)) / (paddleWidth / 2);
         brick.ballDX = hit * 3.4;
@@ -1511,11 +1547,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
     for (const block of brick.bricks) {
       if (!block.alive) continue;
-      const dx = Math.abs(brick.ballX - (block.x + 10));
-      const dy = Math.abs(brick.ballY - (block.y - 8));
-      if (dx < 16 && dy < 16) {
+      // Match the 32×20 artwork and the ball's visible radius, including corners.
+      const centerX = block.x + 10;
+      const centerY = block.y - 8;
+      const dx = brick.ballX - centerX;
+      const dy = brick.ballY - centerY;
+      const gapX = Math.max(0, Math.abs(dx) - 16);
+      const gapY = Math.max(0, Math.abs(dy) - 10);
+      if (gapX * gapX + gapY * gapY <= ballRadius * ballRadius) {
         block.alive = false;
-        brick.ballDY *= -1;
+        const overlapX = 16 + ballRadius - Math.abs(dx);
+        const overlapY = 10 + ballRadius - Math.abs(dy);
+        if (overlapX < overlapY) {
+          const side = dx < 0 ? -1 : 1;
+          brick.ballX = centerX + side * (16 + ballRadius);
+          brick.ballDX = side * Math.abs(brick.ballDX);
+        } else {
+          const side = dy < 0 ? -1 : 1;
+          brick.ballY = centerY + side * (10 + ballRadius);
+          brick.ballDY = side * Math.abs(brick.ballDY);
+        }
         brick.score += 10;
         brick.high = updateStoredHighScore(HIGH_SCORE_KEYS.brick, brick.high, brick.score);
         break;
@@ -2006,7 +2057,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("refresh-projects")?.addEventListener("click", () => {
     loadProjects(projectContainer, { rotate: true });
   });
-  loadProjects(projectContainer, { force: false });
+  loadProjects(projectContainer, { force: false, initial: true });
 
   window.addEventListener("scroll", requestTitleUpdate, { passive: true });
   window.addEventListener("resize", () => {
@@ -2325,7 +2376,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }).catch((error) => {
     console.warn("3D racing unavailable; using the 2D racing view.", error);
   });
-  import("./arcade-portal.js?v=3").then(({ createArcadePortal }) => {
+  import("./arcade-portal.js?v=11").then(({ createArcadePortal }) => {
     for (const game of games) {
       if (game.key === "car") continue;
       try {
