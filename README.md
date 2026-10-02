@@ -60,24 +60,13 @@ Asteroids, Invaders, Brick Breaker and Snake use their original illustrated pixe
 
 `racing-portal.js` owns the racing view and `arcade-portal.js` owns the other four views; `script.js` owns gameplay and controls. Reusable model pools and instanced voxel geometry limit allocation and draw calls. Three.js 0.186.1 and its MIT license are in `vendor/three/`. The JavaScript files are jsDelivr's Terser-minified copies of the versioned npm build; the core is stored as `three.core.js` to match the module's relative import. Their bytes were compared against the recorded CDN URLs, and the license against npm's integrity-verified archive. `vendor/three/provenance.json` records the sources and SHA-256 checksums. All scene models and textures are generated locally; no external model assets are required.
 
-## Verification
+## Manual checks
 
-Use Node.js 24 or newer for the development checks (no package installation required):
+After editing, use the local HTTP server to check:
 
-```sh
-node scripts/verify.mjs
-node --test tests/*.test.mjs
-git diff --check
-```
-
-The static verifier checks JavaScript syntax, HTML IDs, local links/assets, ARIA references, module imports, and vendored dependency integrity. The regression suite covers GitHub loading failures and validation, game input and physics, scores, and renderer lifecycle/colour identity. Renderer unit tests use real scene geometry with a fake graphics driver; browser checks are still required for actual WebGL output.
-
-There is no TypeScript compiler, linter configuration, package install, or generated production bundle. The HTML/CSS/JavaScript served locally are the production files. After editing, run the checks above and use the local HTTP server to check:
-
-- All five games: select, Help, Play, controls, pause after scrolling/leaving the tab, retry and Back.
-- Keyboard focus, Help dismissal, section links, mobile menu, and project refresh.
-- Desktop, tablet, narrow phones and landscape; console errors and failed requests.
-- Reduced-motion and WebGL-disabled/context-loss fallback when changing renderers.
+- All five games in pixel and legacy modes: Help, Play, controls, pause, retry, and return to the carousel.
+- Keyboard navigation, section links, mobile layout, and project refresh.
+- Browser console errors and failed asset requests.
 
 ## Deployment and external services
 
