@@ -60,6 +60,7 @@ export function environment(options = {}) {
   document.querySelector = selector => selector === '.game-panel.active' ? panels.find(panel => panel.classList.contains('active')) : null;
   const motion = new Element(); motion.matches = false;
   const window = new Element('window'); Object.assign(window, { scrollY: 0, innerWidth: 1280, innerHeight: 720, matchMedia: () => motion, getComputedStyle: element => ({ transform: 'none', getPropertyValue: key => element.style[key] || '' }), scrollTo() {}, setTimeout, clearTimeout });
+  window.location = new URL(options.url || 'https://jett-lu.github.io/');
   const storage = new Map();
   const sessionStorage = options.storage || { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
   const frames = [];

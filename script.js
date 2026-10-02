@@ -301,6 +301,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const navItems = navLinks ? Array.from(navLinks.querySelectorAll("a")) : [];
   const fadeEls = document.querySelectorAll(".fade-in-section");
   const projectContainer = document.getElementById("project-container");
+  const modeUrl = new URL(window.location.href);
+  const legacyMode = modeUrl.searchParams.get("mode") === "legacy";
+  const modeToggle = document.getElementById("arcade-mode-toggle");
+  if (modeToggle) {
+    modeUrl.searchParams.set("mode", legacyMode ? "pixel" : "legacy");
+    modeUrl.hash = "";
+    modeToggle.href = `${modeUrl.pathname}${modeUrl.search}`;
+    modeToggle.textContent = legacyMode ? "Pixel mode" : "Legacy mode";
+    modeToggle.setAttribute("aria-label", legacyMode ? "Switch to pixel 3D games" : "Switch to legacy 2D games");
+  }
 
   const gameContainer = document.getElementById("game-container");
   const floatingTitle = document.getElementById("fixed-name-title");
@@ -2370,6 +2380,8 @@ document.addEventListener("DOMContentLoaded", () => {
   requestTitleUpdate();
 
   // Keep the 2D game available if WebGL or the optional 3D module cannot load.
+  // Legacy mode deliberately keeps those renderers and loads no WebGL modules.
+  if (legacyMode) return;
   import("./racing-portal.js?v=3").then(({ createRacingPortal }) => {
     racingPortal = createRacingPortal(carCanvas);
     drawCarGame();

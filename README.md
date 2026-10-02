@@ -8,7 +8,7 @@ Live site: https://jett-lu.github.io
 ## Overview
 
 This site serves as a central hub for presenting my work, experience, and technical focus areas.  
-It uses HTML, CSS, and vanilla JavaScript, emphasizing clarity, accessibility, and maintainability. The experimental arcade games use locally bundled Three.js renderers.
+It uses HTML, CSS, and vanilla JavaScript, emphasizing clarity, accessibility, and maintainability. The arcade games use locally bundled Three.js renderers.
 
 ## Features
 
@@ -22,7 +22,7 @@ It uses HTML, CSS, and vanilla JavaScript, emphasizing clarity, accessibility, a
 
 - HTML5
 - CSS3
-- Vanilla JavaScript and Three.js (experimental arcade)
+- Vanilla JavaScript and Three.js (pixel arcade)
 - GitHub Pages (hosting)
 
 ## Local Development
@@ -35,9 +35,11 @@ python -m http.server 8765 --bind 127.0.0.1
 
 Open http://127.0.0.1:8765. There is no build step or runtime CDN dependency.
 
-## Experimental 3D Pixel Arcade
+## 3D Pixel Arcade
 
-On `experinmentalm`, all five games have pixel-art Three.js scenes filling flat carousel frames. Score displays share the portfolio's Arial font. Portfolio sections retain their 2D layout.
+The pixel arcade is the default experience. A discreet **Legacy mode** link beneath the footer opens the ASCII/2D games (`?mode=legacy`); **Pixel mode** switches back. The URL preserves the choice on refresh. Both modes share gameplay fixes and locally saved high scores; legacy mode does not load the Three.js renderers.
+
+All five games have pixel-art Three.js scenes filling flat carousel frames. Score displays share the portfolio's Arial font. Portfolio sections retain their 2D layout.
 
 - **Asteroids:** a voxel ship, layered stars, and rotating faceted rocks.
 - **Space Invaders:** four colourful rows of voxel aliens and a pixel ship.

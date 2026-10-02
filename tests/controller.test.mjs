@@ -8,6 +8,17 @@ function game(index) {
   env.context.controller.setActive(index); return { ...env, game: env.context.controller };
 }
 const key = (env, name) => env.game.handleGameKeyDown({ key: name, target: env.elements.get('game-play'), preventDefault() {} });
+test('footer switches between legacy and pixel modes without losing the site path', () => {
+  for (const [search, label, nextMode] of [['', 'Legacy mode', 'legacy'], ['?mode=legacy', 'Pixel mode', 'pixel']]) {
+    const env = loadSite({ controller: true, url: `https://example.com/portfolio/${search}` });
+    const toggle = env.elements.get('arcade-mode-toggle');
+    assert(toggle, 'mode control must exist in the footer');
+    assert.equal(toggle.textContent, label);
+    const destination = new URL(toggle.href, env.window.location);
+    assert.equal(destination.pathname, '/portfolio/');
+    assert.equal(destination.searchParams.get('mode'), nextMode);
+  }
+});
 test('filling the final Snake cell ends the run without an infinite food loop', () => {
   const env = game(4);
   Object.assign(env.game.snake, { cols: 2, rows: 2, body: [{x:0,y:0},{x:0,y:1},{x:1,y:1}], food:{x:1,y:0}, dirX:1,dirY:0 });
