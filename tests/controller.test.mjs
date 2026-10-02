@@ -9,7 +9,7 @@ function game(index) {
 }
 const key = (env, name) => env.game.handleGameKeyDown({ key: name, target: env.elements.get('game-play'), preventDefault() {} });
 test('footer switches between legacy and pixel modes without losing the site path', () => {
-  for (const [search, label, nextMode] of [['', 'Legacy mode', 'legacy'], ['?mode=legacy', 'Pixel mode', 'pixel']]) {
+  for (const [search, label, nextMode] of [['', 'also check out legacy mode', 'legacy'], ['?mode=legacy', 'Pixel mode', 'pixel']]) {
     const env = loadSite({ controller: true, url: `https://example.com/portfolio/${search}` });
     const toggle = env.elements.get('arcade-mode-toggle');
     assert(toggle, 'mode control must exist in the footer');

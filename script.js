@@ -308,7 +308,7 @@ document.addEventListener("DOMContentLoaded", () => {
     modeUrl.searchParams.set("mode", legacyMode ? "pixel" : "legacy");
     modeUrl.hash = "";
     modeToggle.href = `${modeUrl.pathname}${modeUrl.search}`;
-    modeToggle.textContent = legacyMode ? "Pixel mode" : "Legacy mode";
+    modeToggle.textContent = legacyMode ? "Pixel mode" : "also check out legacy mode";
     modeToggle.setAttribute("aria-label", legacyMode ? "Switch to pixel 3D games" : "Switch to legacy 2D games");
   }
 
