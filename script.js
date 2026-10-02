@@ -2382,13 +2382,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // Keep the 2D game available if WebGL or the optional 3D module cannot load.
   // Legacy mode deliberately keeps those renderers and loads no WebGL modules.
   if (legacyMode) return;
-  import("./racing-portal.js?v=3").then(({ createRacingPortal }) => {
+  import("./game-visuals.js?v=1").then(({ createRacingPortal }) => {
     racingPortal = createRacingPortal(carCanvas);
     drawCarGame();
   }).catch((error) => {
     console.warn("3D racing unavailable; using the 2D racing view.", error);
   });
-  import("./arcade-portal.js?v=11").then(({ createArcadePortal }) => {
+  import("./game-visuals.js?v=1").then(({ createArcadePortal }) => {
     for (const game of games) {
       if (game.key === "car") continue;
       try {
