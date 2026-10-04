@@ -313,6 +313,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const gameContainer = document.getElementById("game-container");
+  const loadingMessage = document.getElementById("arcade-loading");
+  if (!legacyMode) {
+    gameContainer.classList.add("arcade-loading");
+    loadingMessage.hidden = false;
+  }
   const floatingTitle = document.getElementById("fixed-name-title");
   const viewport = document.getElementById("game-carousel-viewport");
   const carousel = document.getElementById("game-carousel");
@@ -946,7 +951,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function makeAsteroidFromEdge(index, speedBoost) {
     if (!astCanvas) return { x: 0, y: 0, vx: 0, vy: 0, r: 20 };
     const side = index % 4;
-    const margin = 46;
+    const margin = arcadePortals.asteroids?.available ? 46 : 26;
     const x = side === 0 ? -margin : side === 1 ? astCanvas.width + margin : 40 + Math.random() * 320;
     const y = side === 2 ? -margin : side === 3 ? astCanvas.height + margin : 80 + Math.random() * 440;
     const targetX = 140 + Math.random() * 120;
@@ -960,7 +965,7 @@ document.addEventListener("DOMContentLoaded", () => {
       y,
       vx: (dx / len) * speed,
       vy: (dy / len) * speed,
-      r: 25 + Math.random() * 18,
+      r: arcadePortals.asteroids?.available ? 25 + Math.random() * 18 : 18 + Math.random() * 9,
       art: ["[O]", "{O}", "(0)", "<O>", "[0]"][index % 5]
     };
   }
@@ -983,7 +988,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!astCanvas || !astCtx) return;
     setAstCanvasSize();
     ast.shipX = 200;
-    ast.shipY = 453;
+    ast.shipY = arcadePortals.asteroids?.available ? 453 : 300;
     ast.angle = -Math.PI / 2;
     ast.vx = 0;
     ast.vy = 0;
@@ -1014,10 +1019,10 @@ document.addEventListener("DOMContentLoaded", () => {
     astCtx.save();
     astCtx.translate(ast.shipX, ast.shipY);
     astCtx.rotate(ast.angle + Math.PI / 2);
-    astCtx.font = `${24 * ast.shipScale}px Courier`;
+    astCtx.font = "22px Courier";
     astCtx.textAlign = "center";
     astCtx.textBaseline = "middle";
-    astCtx.fillText("/\\", 0, 0, 22 * ast.shipScale);
+    astCtx.fillText("/\\", 0, 0);
     astCtx.restore();
     astCtx.textAlign = "start";
     astCtx.textBaseline = "alphabetic";
@@ -1036,12 +1041,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     ast.rocks.forEach((rock) => {
-      astCtx.save();
-      astCtx.font = `${rock.r * 2}px Courier`;
-      astCtx.textAlign = "center";
-      astCtx.textBaseline = "middle";
-      astCtx.fillText(rock.art, rock.x, rock.y, rock.r * 2);
-      astCtx.restore();
+      astCtx.font = "20px Courier";
+      astCtx.fillText(rock.art, rock.x - 15, rock.y + 6);
     });
   }
 
@@ -1070,7 +1071,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const now = Date.now();
     if (now - ast.lastShot > ast.shotMs) {
       ast.lastShot = now;
-      const muzzle = 12 * ast.shipScale + 6;
+      const muzzle = arcadePortals.asteroids?.available ? 12 * ast.shipScale + 6 : 18;
       ast.bullets.push({
         x: ast.shipX + Math.cos(ast.angle) * muzzle,
         y: ast.shipY + Math.sin(ast.angle) * muzzle,
@@ -1130,7 +1131,7 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const rock of ast.rocks) {
       const dx = ast.shipX - rock.x;
       const dy = ast.shipY - rock.y;
-      if (Math.hypot(dx, dy) < rock.r + 10 * ast.shipScale) {
+      if (Math.hypot(dx, dy) < rock.r + 10 * (arcadePortals.asteroids?.available ? ast.shipScale : 1)) {
         ast.gameOver = true;
         ast.high = updateStoredHighScore(HIGH_SCORE_KEYS.asteroids, ast.high, ast.score);
         showOverlay(ast.score, ast.high);
@@ -1307,7 +1308,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!invCanvas) return;
     invCanvas.width = 400;
     invCanvas.height = 600;
-    inv.shipY = invCanvas.height - 65;
+    inv.shipY = invCanvas.height - (arcadePortals.invaders?.available ? 65 : 60);
   }
 
   function spawnInvaderWave() {
@@ -1315,11 +1316,12 @@ document.addEventListener("DOMContentLoaded", () => {
     inv.dir = 1;
 
     const rows = 4;
-    const cols = 5;
-    const startX = 70;
-    const startY = 152;
-    const gapX = 65;
-    const gapY = 51;
+    const pixel = arcadePortals.invaders?.available;
+    const cols = pixel ? 5 : 9;
+    const startX = pixel ? 70 : 60;
+    const startY = pixel ? 152 : 100;
+    const gapX = pixel ? 65 : 32;
+    const gapY = pixel ? 51 : 30;
 
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < cols; col += 1) {
@@ -1331,7 +1333,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function resetInvadersGame() {
     if (!invCanvas || !invCtx) return;
     setInvCanvasSize();
-    inv.shipX = 200;
+    inv.shipX = arcadePortals.invaders?.available ? 200 : 190;
     inv.bullets = [];
     inv.speedX = 1.2;
     inv.score = 0;
@@ -1360,18 +1362,14 @@ document.addEventListener("DOMContentLoaded", () => {
     invCtx.fillText(`Score: ${Math.floor(inv.score)}`, 10, 20);
     invCtx.fillText(`High Score: ${Math.floor(inv.high)}`, 10, 40);
 
-    invCtx.save();
-    invCtx.textAlign = "center";
-    invCtx.textBaseline = "middle";
-    invCtx.font = `${24 * inv.shipScale}px Courier`;
-    invCtx.fillText("/^\\", inv.shipX, inv.shipY, 22 * inv.shipScale);
+    invCtx.font = "22px Courier";
+    invCtx.fillText("/^\\", inv.shipX - 12, inv.shipY);
 
-    invCtx.font = `${16 * inv.alienScale}px Courier`;
+    invCtx.font = "20px Courier";
     inv.aliens.forEach((alien) => {
       if (!alien.alive) return;
-      invCtx.fillText("[W]", alien.x, alien.y, 22 * inv.alienScale);
+      invCtx.fillText("W", alien.x, alien.y);
     });
-    invCtx.restore();
 
     invCtx.font = "18px Courier";
     inv.bullets.forEach((bullet) => {
@@ -1391,7 +1389,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const now = Date.now();
     if (now - inv.lastShot > inv.shotMs) {
       inv.lastShot = now;
-      inv.bullets.push({ x: inv.shipX, y: inv.shipY - 12 * inv.shipScale - 6, dead: false });
+      inv.bullets.push({ x: inv.shipX, y: inv.shipY - (arcadePortals.invaders?.available ? 12 * inv.shipScale + 6 : 18), dead: false });
     }
 
     const bulletSpeed = 650;
@@ -1411,9 +1409,9 @@ document.addEventListener("DOMContentLoaded", () => {
       rightMost = Math.max(rightMost, alien.x);
     });
 
-    const alienHalfWidth = 11 * inv.alienScale;
-    const alienHalfHeight = 8 * inv.alienScale;
-    const alienMargin = alienHalfWidth + 2;
+    const alienHalfWidth = arcadePortals.invaders?.available ? 11 * inv.alienScale : 10;
+    const alienHalfHeight = arcadePortals.invaders?.available ? 8 * inv.alienScale : 6;
+    const alienMargin = arcadePortals.invaders?.available ? alienHalfWidth + 2 : 20;
     const leftOverflow = Math.min(0, leftMost - alienMargin);
     const rightOverflow = Math.max(0, rightMost - (invCanvas.width - alienMargin));
     const edgeCorrection = leftOverflow ? -leftOverflow : -rightOverflow;
@@ -1424,7 +1422,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!alien.alive) return;
         alien.x += edgeCorrection;
         alien.y += inv.stepDown;
-        if (alien.y + alienHalfHeight >= inv.shipY - 12 * inv.shipScale) inv.gameOver = true;
+        if (arcadePortals.invaders?.available
+          ? alien.y + alienHalfHeight >= inv.shipY - 12 * inv.shipScale
+          : alien.y > inv.shipY - 40) inv.gameOver = true;
       });
     }
 
@@ -1471,16 +1471,16 @@ document.addEventListener("DOMContentLoaded", () => {
     brick.score = 0;
     brick.gameOver = false;
     brickPaused = false;
-    brick.paddleX = 160;
-    brick.ballX = 235;
-    brick.ballY = 421;
+    brick.paddleX = arcadePortals.brick?.available ? 160 : 156;
+    brick.ballX = arcadePortals.brick?.available ? 235 : 200;
+    brick.ballY = arcadePortals.brick?.available ? 421 : 360;
     brick.ballDX = 2.6;
     brick.ballDY = -2.8;
 
     brick.bricks = [];
     for (let row = 0; row < 5; row += 1) {
       for (let col = 0; col < 9; col += 1) {
-        brick.bricks.push({ x: 28 + col * 40, y: 153 + row * 30, alive: true });
+        brick.bricks.push({ x: 28 + col * 40, y: arcadePortals.brick?.available ? 153 + row * 30 : 90 + row * 24, alive: true });
       }
     }
 
@@ -2382,21 +2382,28 @@ document.addEventListener("DOMContentLoaded", () => {
   // Keep the 2D game available if WebGL or the optional 3D module cannot load.
   // Legacy mode deliberately keeps those renderers and loads no WebGL modules.
   if (legacyMode) return;
-  import("./game-visuals.js?v=1").then(({ createRacingPortal }) => {
-    racingPortal = createRacingPortal(carCanvas);
-    drawCarGame();
-  }).catch((error) => {
-    console.warn("3D racing unavailable; using the 2D racing view.", error);
-  });
-  import("./game-visuals.js?v=1").then(({ createArcadePortal }) => {
+  let loadingFinished = false;
+  function finishLoading() {
+    loadingFinished = true;
+    clearTimeout(loadingTimeout);
+    gameContainer.classList.remove("arcade-loading");
+    loadingMessage.hidden = true;
+  }
+  // A stalled download must not leave the games hidden indefinitely.
+  const loadingTimeout = setTimeout(finishLoading, 15000);
+  import("./game-visuals.js?v=1").then(({ createRacingPortal, createArcadePortal }) => {
+    // Keep the fallback stable if the download finished after the timeout.
+    if (loadingFinished) return;
     for (const game of games) {
-      if (game.key === "car") continue;
       try {
-        arcadePortals[game.key] = createArcadePortal(game.canvas, game.key);
+        if (game.key === "car") racingPortal = createRacingPortal(game.canvas);
+        else arcadePortals[game.key] = createArcadePortal(game.canvas, game.key);
+        game.reset();
         game.draw();
       } catch (error) {
         console.warn(`3D ${game.key} unavailable; using the 2D view.`, error);
       }
     }
-  }).catch(error => console.warn("3D arcade unavailable; using the 2D views.", error));
+  }).catch(error => console.warn("3D arcade unavailable; using the 2D views.", error))
+    .finally(finishLoading);
 });

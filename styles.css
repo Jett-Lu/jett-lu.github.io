@@ -717,6 +717,54 @@ html:not(.js) #game-container { height: 240px; }
 html:not(.js) #fixed-name-title { position: absolute; }
 .arcade-no-script { color: #fff; padding: 24px; margin-top: 40px; }
 
+#arcade-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(260px, calc(100% - 48px));
+  color: #fff;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  font-weight: normal;
+  text-align: center;
+  letter-spacing: 0.08em;
+}
+
+.loading-title, .loading-caption { display: block; }
+.loading-caption { font-size: 11px; }
+.loading-track {
+  display: block;
+  height: 24px;
+  margin: 18px 16px;
+  border: 2px solid currentColor;
+  padding: 4px;
+  overflow: hidden;
+}
+.loading-track > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(90deg, #fff 0 12px, transparent 12px 18px);
+  clip-path: inset(0 83.333% 0 0);
+  animation: arcade-loading-sweep 1.8s steps(12) infinite;
+}
+.loading-cursor { animation: arcade-loading-blink 1s steps(2, jump-none) infinite; }
+@keyframes arcade-loading-sweep {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0); }
+}
+@keyframes arcade-loading-blink { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .loading-track > span, .loading-cursor { animation: none; }
+}
+
+.arcade-loading #game-carousel-viewport,
+.arcade-loading #game-controls,
+.arcade-loading .carousel-arrow {
+  visibility: hidden;
+}
+
 #game-container.expanded canvas { touch-action: none; }
 
 @media (min-width: 769px) {
