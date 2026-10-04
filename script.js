@@ -1866,7 +1866,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function handleGameKeyDown(event) {
-    if (isTypingTarget(event.target)) return;
+    if (event.defaultPrevented || isTypingTarget(event.target)) return;
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
 
     if (helpOpen) {
       if (event.key === "Escape") {
@@ -1876,9 +1877,17 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (!isPlayMode()) return;
-
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
+    if (!isPlayMode()) {
+      if (gameContainer.classList.contains("arcade-loading")) return;
+      if (hamburger?.getAttribute("aria-expanded") === "true") return;
+      const bounds = viewport.getBoundingClientRect();
+      if (bounds.bottom <= 0 || bounds.top >= window.innerHeight) return;
+      event.preventDefault();
+      moveCarousel(event.key === "ArrowLeft" ? -1 : 1);
+      return;
+    }
 
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
@@ -2122,12 +2131,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (viewport) {
     viewport.addEventListener("keydown", (event) => {
       if (helpOpen) return;
-      if (!isPlayMode() && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-        event.preventDefault();
-        moveCarousel(event.key === "ArrowLeft" ? -1 : 1);
-        return;
-      }
-
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         if (playBtn) playBtn.click();
