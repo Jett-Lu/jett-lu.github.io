@@ -212,9 +212,7 @@ async function loadProjects(container, opts = {}) {
   const initialScrollY = window.scrollY;
   const buttonTop = refreshButton?.getBoundingClientRect().top;
   const preservePosition = opts.rotate && hasCards && buttonTop >= 0 && buttonTop < window.innerHeight;
-  if (hasCards) {
-    container.style.minHeight = `${container.offsetHeight}px`;
-  } else {
+  if (!hasCards) {
     const loading = document.createElement("p");
     loading.textContent = "Loading featured projects...";
     container.replaceChildren(loading);
@@ -314,6 +312,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const gameContainer = document.getElementById("game-container");
   const loadingMessage = document.getElementById("arcade-loading");
+  const graphicsNotice = document.getElementById("graphics-notice");
   if (!legacyMode) {
     gameContainer.classList.add("arcade-loading");
     loadingMessage.hidden = false;
@@ -1866,6 +1865,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function handleGameKeyDown(event) {
+    if (graphicsNotice?.open) return;
     if (event.defaultPrevented || isTypingTarget(event.target)) return;
     if (event.altKey || event.ctrlKey || event.metaKey) return;
 
@@ -2080,7 +2080,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener("scroll", requestTitleUpdate, { passive: true });
   window.addEventListener("resize", () => {
-    projectContainer?.style.removeProperty("min-height");
     requestTitleUpdate();
     requestAnimationFrame(() => {
       centerActive(false);
@@ -2386,14 +2385,24 @@ document.addEventListener("DOMContentLoaded", () => {
   // Legacy mode deliberately keeps those renderers and loads no WebGL modules.
   if (legacyMode) return;
   let loadingFinished = false;
+  let graphicsFailure = "";
+  let failedGames = 0;
   function finishLoading() {
+    if (loadingFinished) return;
     loadingFinished = true;
     clearTimeout(loadingTimeout);
     gameContainer.classList.remove("arcade-loading");
     loadingMessage.hidden = true;
+    if (graphicsFailure) {
+      document.getElementById("graphics-notice-message").textContent = graphicsFailure;
+      graphicsNotice.showModal();
+    }
   }
   // A stalled download must not leave the games hidden indefinitely.
-  const loadingTimeout = setTimeout(finishLoading, 15000);
+  const loadingTimeout = setTimeout(() => {
+    graphicsFailure = "Graphics loading timed out. Legacy mode is active.";
+    finishLoading();
+  }, 15000);
   import("./game-visuals.js?v=1").then(({ createRacingPortal, createArcadePortal }) => {
     // Keep the fallback stable if the download finished after the timeout.
     if (loadingFinished) return;
@@ -2404,9 +2413,19 @@ document.addEventListener("DOMContentLoaded", () => {
         game.reset();
         game.draw();
       } catch (error) {
+        failedGames += 1;
         console.warn(`3D ${game.key} unavailable; using the 2D view.`, error);
       }
     }
-  }).catch(error => console.warn("3D arcade unavailable; using the 2D views.", error))
+    if (failedGames) {
+      graphicsFailure = failedGames === games.length
+        ? "WebGL is blocked or unavailable. Legacy mode is active."
+        : "Some graphics are unavailable. Affected games use legacy mode.";
+    }
+  }).catch(error => {
+    console.warn("3D arcade unavailable; using the 2D views.", error);
+    if (loadingFinished) return;
+    graphicsFailure = "Coloured graphics couldn't load. Legacy mode is active.";
+  })
     .finally(finishLoading);
 });
